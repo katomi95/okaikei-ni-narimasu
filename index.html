@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>お会計になります</title>
+<meta name="description" content="財布を忘れた。ただそれだけの、決済脱出アドベンチャー。">
+<meta name="theme-color" content="#2a231c">
+<meta property="og:type" content="website">
+<meta property="og:title" content="お会計になります">
+<meta property="og:description" content="財布を忘れた。ただそれだけの、決済脱出アドベンチャー。ブラウザで10〜20分。">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <span class="bill">お会計 <b>¥1,480</b></span>
+    <span class="clock" id="clock">13:12</span>
+    <span class="runTag" id="runTag"></span>
+    <div class="gauges">
+      <div class="g trust"><div class="gl"><span>信用度</span><span id="vTrust">50</span></div><div class="gb"><div class="gf" id="bTrust"></div></div></div>
+      <div class="g shame"><div class="gl"><span>羞恥心</span><span id="vShame">5</span></div><div class="gb"><div class="gf" id="bShame"></div></div></div>
+      <div class="g conf"><div class="gl"><span>困惑度</span><span id="vConf">0</span></div><div class="gb"><div class="gf" id="bConf"></div></div></div>
+    </div>
+    <div class="batt" id="battWrap"><div class="cell"><div class="lv" id="battLv"></div></div><span id="battTx">47%</span></div>
+    <div class="hud-right">
+      <button id="btnSound" title="音">🔊</button>
+      <button id="btnRestart" title="やり直す">↺</button>
+    </div>
+  </header>
+
+  <div id="stage">
+    <section id="scene">
+      <svg viewBox="0 0 640 400" preserveAspectRatio="xMidYMid slice" id="sceneSvg">
+        <defs>
+          <linearGradient id="wallG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#e8d8bd"/><stop offset="1" stop-color="#cfb897"/>
+          </linearGradient>
+          <linearGradient id="floorG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#a8794f"/><stop offset="1" stop-color="#8a5f3c"/>
+          </linearGradient>
+          <linearGradient id="winG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#cfe6f0"/><stop offset="1" stop-color="#a9cbd8"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="640" height="232" fill="url(#wallG)"/>
+        <rect x="0" y="232" width="640" height="168" fill="url(#floorG)"/>
+        <rect x="0" y="226" width="640" height="9" fill="#7a5133"/>
+        <g id="window">
+          <rect x="24" y="76" width="140" height="96" rx="5" fill="url(#winG)"/>
+          <rect x="24" y="76" width="140" height="96" rx="5" fill="none" stroke="#8b6a48" stroke-width="5"/>
+          <line x1="94" y1="76" x2="94" y2="172" stroke="#8b6a48" stroke-width="4"/>
+          <circle cx="55" cy="104" r="12" fill="#f2efe2" opacity=".7"/>
+          <rect x="108" y="132" width="40" height="40" fill="#9fbcae" opacity=".5"/>
+          <g id="phoneBox" opacity=".9">
+            <rect x="116" y="122" width="17" height="50" fill="#3f7f6f"/>
+            <rect x="118" y="126" width="13" height="18" fill="#cfe6e0"/>
+          </g>
+        </g>
+        <g id="board">
+          <rect x="200" y="96" width="118" height="72" rx="4" fill="#5c4630" stroke="#3f2f20" stroke-width="3"/>
+          <text x="259" y="119" text-anchor="middle" font-size="13" fill="#ffe6b0" font-family="sans-serif">本日の定食</text>
+          <text x="259" y="141" text-anchor="middle" font-size="17" fill="#ffd27a" font-family="sans-serif">¥1,480</text>
+          <text x="259" y="158" text-anchor="middle" font-size="8.5" fill="#e0c9a5" font-family="sans-serif">現金 / 一部キャッシュレス可</text>
+        </g>
+        <g id="signQR">
+          <rect x="336" y="104" width="84" height="62" rx="4" fill="#fff8ea" stroke="#b39b76" stroke-width="2"/>
+          <text x="378" y="121" text-anchor="middle" font-size="8.5" fill="#7a6244" font-family="sans-serif">ご利用いただけます</text>
+          <rect x="366" y="126" width="24" height="24" fill="#2a231c"/>
+          <rect x="370" y="130" width="6" height="6" fill="#fff8ea"/>
+          <rect x="381" y="140" width="6" height="6" fill="#fff8ea"/>
+          <text x="378" y="162" text-anchor="middle" font-size="8" fill="#7a6244" font-family="sans-serif">ニコニコPay</text>
+        </g>
+        <rect x="352" y="252" width="288" height="15" rx="3" fill="#a97c52"/>
+        <rect x="352" y="267" width="288" height="60" fill="#8a6340"/>
+        <g id="register">
+          <rect x="462" y="212" width="64" height="42" rx="4" fill="#4a4f57"/>
+          <rect x="470" y="219" width="48" height="19" rx="2" fill="#8fd0c0"/>
+          <rect x="470" y="242" width="48" height="6" rx="2" fill="#2f343b"/>
+        </g>
+        <g id="clerk" transform="translate(405,140)">
+          <ellipse cx="0" cy="126" rx="34" ry="7" fill="#00000022"/>
+          <path d="M-26 60 q26 -16 52 0 l6 66 h-64 z" fill="#3d4a5c"/>
+          <path d="M-22 78 q22 -8 44 0 l4 48 h-52 z" fill="#c0563c"/>
+          <rect x="-5" y="46" width="10" height="18" fill="#f0c9a8"/>
+          <circle cx="0" cy="26" r="26" fill="#f5d3b0"/>
+          <path d="M-27 20 q27 -34 54 0 q-10 -16 -27 -16 q-17 0 -27 16z" fill="#3a2b21"/>
+          <g id="clerkFace">
+            <g id="faceEyes">
+              <circle cx="-9" cy="26" r="2.6" fill="#2a231c"/>
+              <circle cx="9" cy="26" r="2.6" fill="#2a231c"/>
+            </g>
+            <path id="faceMouth" d="M-7 38 q7 5 14 0" stroke="#2a231c" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path id="faceBrowL" d="M-14 16 q5 -3 10 0" stroke="#2a231c" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+            <path id="faceBrowR" d="M4 16 q5 -3 10 0" stroke="#2a231c" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          </g>
+          <text id="clerkEmote" x="32" y="-4" font-size="22" opacity="0">…</text>
+        </g>
+        <g id="queue"></g>
+        <g id="neighbour" transform="translate(140,196)">
+          <ellipse cx="0" cy="112" rx="30" ry="6" fill="#00000022"/>
+          <rect x="-36" y="76" width="72" height="8" rx="3" fill="#b58a5e"/>
+          <rect x="-31" y="84" width="6" height="28" fill="#96693f"/>
+          <rect x="25" y="84" width="6" height="28" fill="#96693f"/>
+          <circle cx="-3" cy="22" r="20" fill="#eec8a4"/>
+          <path d="M-23 16 q20 -30 42 -2 q-4 -20 -21 -20 q-19 0 -21 22z" fill="#4a382c"/>
+          <path d="M-24 44 q21 -13 42 0 l5 34 h-52 z" fill="#6d7f8c"/>
+          <circle cx="-10" cy="22" r="2.2" fill="#2a231c"/><circle cx="4" cy="22" r="2.2" fill="#2a231c"/>
+          <path id="nbMouth" d="M-6 32 q6 3 12 0" stroke="#2a231c" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          <text id="nbEmote" x="24" y="0" font-size="18" opacity="0">…</text>
+        </g>
+        <g id="myChair">
+          <rect x="16" y="286" width="80" height="10" rx="3" fill="#7c5535"/>
+          <rect x="20" y="296" width="8" height="36" fill="#6b4629"/>
+          <rect x="84" y="296" width="8" height="36" fill="#6b4629"/>
+          <rect x="16" y="248" width="80" height="9" rx="3" fill="#8a5f3c" opacity=".85"/>
+          <rect x="20" y="257" width="7" height="30" fill="#6b4629" opacity=".85"/>
+        </g>
+        <g id="wallet" opacity="0">
+          <ellipse cx="56" cy="332" rx="26" ry="7" fill="#00000030"/>
+          <rect x="32" y="310" width="48" height="27" rx="4" fill="#5d3a22" stroke="#3d2413" stroke-width="2"/>
+          <rect x="32" y="321" width="48" height="5" fill="#8a5a3b"/>
+          <circle cx="56" cy="324" r="3.6" fill="#d8b25f"/>
+        </g>
+        <g id="myTable" transform="translate(268,268)">
+          <rect x="-150" y="0" width="300" height="14" rx="4" fill="#c19a6b"/>
+          <rect x="-150" y="14" width="300" height="120" fill="#a97f52"/>
+          <ellipse cx="-72" cy="3" rx="34" ry="11" fill="#f3efe6" stroke="#d9d2c2"/>
+          <ellipse cx="-72" cy="1" rx="24" ry="7.5" fill="#e6e0d2"/>
+          <rect x="4" y="-26" width="22" height="30" rx="3" fill="#cfe4ee" opacity=".85"/>
+          <rect x="4" y="-10" width="22" height="14" rx="2" fill="#a8cfe0" opacity=".9"/>
+          <g id="receipt"><rect x="56" y="-8" width="34" height="12" fill="#fffdf5" stroke="#ded6c4"/><line x1="60" y1="-4" x2="84" y2="-4" stroke="#c9c0ac"/><line x1="60" y1="0" x2="78" y2="0" stroke="#c9c0ac"/></g>
+        </g>
+        <g id="me" transform="translate(150,356)">
+          <ellipse cx="0" cy="16" rx="54" ry="44" fill="#3a2b21"/>
+          <ellipse cx="0" cy="-10" rx="38" ry="30" fill="#3a2b21"/>
+        </g>
+        <text id="clockFace" x="596" y="34" text-anchor="middle" font-size="10" fill="#7a6244" font-family="sans-serif"></text>
+      </svg>
+      <div id="sceneFx"></div>
+      <div id="dramaText"></div>
+      <div id="noticeLayer"></div>
+      <div id="newGameFlash"></div>
+      <div id="deltaLayer"></div>
+      <button id="phoneToggle">📱 スマホ<span id="ptBadge"></span></button>
+    </section>
+
+    <aside id="phone">
+      <div class="handset" id="handset">
+        <div class="notch"></div>
+        <div class="pstat"><span id="pClock">13:12</span><span id="pBatt">🔋47%</span></div>
+        <div class="pscreen" id="pscreen"></div>
+        <div id="phoneLock"><span>クリックで進む ▼</span></div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="bottom">
+    <div id="dialogue">
+      <div id="dlgName"></div>
+      <div id="dlgText"></div>
+      <div id="dlgNext">クリックで次へ ▼</div>
+    </div>
+    <div id="choices">
+      <div id="tabs"></div>
+      <div id="actionList"></div>
+      <div id="lockNote"><span>会話中 — クリックで進む ▼</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay on" id="title">
+  <div style="max-width:560px;width:100%">
+    <div class="sub">決済脱出アドベンチャー</div>
+    <h1>お会計になります</h1>
+    <div class="lead" id="titleLead">
+      定食、うまかった。<br>
+      店員さんが言う。「お会計、1,480円になります」<br>
+      ポケット。カバン。上着。もう一度ポケット。<br>
+      <br>
+      ……ない。<br>
+      <br>
+      財布を忘れた。<br>
+      でもまあ、今どきスマホがあれば何とかなるだろ。
+    </div>
+    <div class="btns">
+      <button class="bigbtn" id="btnStart">はじめる</button>
+      <button class="subbtn" id="btnSkip">オープニングを飛ばす</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="endOv">
+  <div class="card" id="endCard"></div>
+</div>
+
+<div id="curtain"><div class="ct" id="curtainTxt"></div><div class="cs" id="curtainSub"></div></div>
+
+<div class="overlay" id="confirmOv">
+  <div class="card" id="confirmCard">
+    <p id="confirmText"></p>
+    <div class="row"><button class="no" id="cNo">やめておく</button><button class="yes" id="cYes">やる</button></div>
+  </div>
+</div>
+
+<script src="js/engine-core.js"></script>
+<script src="js/data-actions-basic.js"></script>
+<script src="js/data-actions-phone.js"></script>
+<script src="js/data-actions-people.js"></script>
+<script src="js/data-story.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

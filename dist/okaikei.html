@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>お会計になります</title>
+<meta name="description" content="財布を忘れた。ただそれだけの、決済脱出アドベンチャー。">
+<meta name="theme-color" content="#2a231c">
+<meta property="og:type" content="website">
+<meta property="og:title" content="お会計になります">
+<meta property="og:description" content="財布を忘れた。ただそれだけの、決済脱出アドベンチャー。ブラウザで10〜20分。">
+<style>
+:root{
+  --bg:#efe6d8; --bg2:#e2d4c0; --wood:#8a5a3b; --wood2:#6d452c;
+  --ink:#2a231c; --ink2:#5c5147; --line:#cbb99f;
+  --accent:#c0563c; --accent2:#e08a4a; --ok:#3f8f6e; --ng:#b8422f;
+  --phone:#14161d; --phone2:#1e222c; --phoneline:#2c313d;
+  --font: "Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",-apple-system,"Noto Sans JP",sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;overflow:hidden}
+body{
+  font-family:var(--font); background:#1a1611; color:var(--ink);
+  font-size:15px; line-height:1.6; overscroll-behavior:none;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:1180px;margin:0 auto;background:var(--bg);position:relative}
+
+/* ---------- HUD ---------- */
+#hud{
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:6px 10px;
+  background:linear-gradient(#3a2f25,#2a231c);color:#f0e6d6;border-bottom:2px solid #17120e;
+  font-size:12px;position:relative;z-index:30;
+}
+.bill{font-weight:700;letter-spacing:.02em;white-space:nowrap}
+.bill b{color:#ffd98a;font-size:15px}
+.clock{opacity:.85;font-variant-numeric:tabular-nums;white-space:nowrap}
+.gauges{display:flex;gap:10px;flex:1;min-width:0;overflow:hidden;justify-content:center}
+.g{flex:1 1 0;min-width:52px;max-width:150px}
+.g .gl{display:flex;justify-content:space-between;font-size:10px;opacity:.8;line-height:1.2}
+.g .gb{height:6px;border-radius:3px;background:#00000055;overflow:hidden;margin-top:2px}
+.g .gf{height:100%;width:50%;border-radius:3px;transition:width .45s cubic-bezier(.2,.8,.3,1)}
+.g.trust .gf{background:linear-gradient(90deg,#4f9,#2c8)}
+.g.shame .gf{background:linear-gradient(90deg,#f9a,#e46)}
+.g.conf  .gf{background:linear-gradient(90deg,#fd8,#f93)}
+.hud-right{display:flex;gap:4px}
+.hud-right button{width:30px;height:28px;border-radius:7px;background:#ffffff18;font-size:14px}
+.hud-right button:active{background:#ffffff35}
+.batt{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.batt .cell{width:26px;height:11px;border:1.5px solid #f0e6d6aa;border-radius:2px;position:relative;padding:1px}
+.batt .cell:after{content:"";position:absolute;right:-4px;top:3px;width:2px;height:5px;background:#f0e6d6aa;border-radius:0 1px 1px 0}
+.batt .lv{height:100%;background:#7de08a;border-radius:1px;transition:width .4s}
+.batt.low .lv{background:#f7b955}
+.batt.crit .lv{background:#ef5a4a}
+.batt.crit{animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.45}}
+
+/* ---------- STAGE ---------- */
+#stage{flex:1 1 auto;position:relative;min-height:0;display:flex;overflow:hidden}
+#scene{flex:1 1 auto;position:relative;min-width:0;background:#d9c7ad}
+#scene svg{width:100%;height:100%;display:block}
+#sceneFx{position:absolute;inset:0;pointer-events:none;background:#000;opacity:0;transition:opacity .5s}
+#sceneFx.on{opacity:.82}
+#dramaText{
+  position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  color:#fff;font-size:clamp(18px,4.4vw,34px);font-weight:800;letter-spacing:.15em;
+  text-align:center;padding:20px;pointer-events:none;z-index:5;text-shadow:0 0 24px #f008;
+}
+#dramaText.on{display:flex;animation:dramaIn .8s ease-out}
+@keyframes dramaIn{from{opacity:0;transform:scale(1.25)}to{opacity:1;transform:scale(1)}}
+.shake{animation:shake .45s}
+@keyframes shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-6px,3px)}40%{transform:translate(6px,-3px)}60%{transform:translate(-4px,-2px)}80%{transform:translate(4px,2px)}}
+#noticeLayer{position:absolute;top:8px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;z-index:6}
+.notice{background:#2a231ce6;color:#ffe9c4;padding:5px 12px;border-radius:20px;font-size:12px;animation:noticeIn .3s;box-shadow:0 3px 10px #0004}
+.notice.bad{background:#8d2f22e6;color:#ffe2dc}
+.notice.good{background:#2b6b52e6;color:#dbf7e9}
+@keyframes noticeIn{from{opacity:0;transform:translateY(-8px)}}
+#deltaLayer{position:absolute;inset:0;pointer-events:none;z-index:7}
+.delta{position:absolute;font-size:13px;font-weight:800;animation:deltaUp 1.3s ease-out forwards;text-shadow:0 2px 6px #0006}
+@keyframes deltaUp{0%{opacity:0;transform:translateY(6px)}15%{opacity:1}100%{opacity:0;transform:translateY(-38px)}}
+
+/* ---------- PHONE ---------- */
+#phone{
+  flex:0 0 330px;background:#2a231c;padding:12px 12px 12px 4px;display:flex;align-items:center;justify-content:center;
+}
+.handset{
+  width:100%;max-width:306px;aspect-ratio:9/17.5;max-height:100%;background:var(--phone);
+  border-radius:30px;border:7px solid #0b0d11;box-shadow:0 10px 30px #0007, inset 0 0 0 1px #ffffff12;
+  display:flex;flex-direction:column;overflow:hidden;position:relative;
+}
+.handset.dead{filter:grayscale(1) brightness(.35)}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:96px;height:17px;background:#0b0d11;border-radius:0 0 12px 12px;z-index:4}
+.pstat{flex:0 0 auto;display:flex;justify-content:space-between;padding:6px 14px 2px;font-size:10px;color:#c9d0de;font-variant-numeric:tabular-nums}
+.pscreen{flex:1 1 auto;overflow-y:auto;padding:6px 10px 10px;color:#e7ebf3;-webkit-overflow-scrolling:touch}
+.pscreen::-webkit-scrollbar{width:5px}.pscreen::-webkit-scrollbar-thumb{background:#3a4152;border-radius:3px}
+.phome{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 6px;padding:8px 2px}
+.appicon{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;color:#c9d0de;text-align:center;line-height:1.15}
+.appicon .ic{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:21px;box-shadow:0 2px 6px #0006;position:relative;transition:transform .12s}
+.appicon:active .ic{transform:scale(.9)}
+.appicon .badge{position:absolute;top:-4px;right:-4px;background:#e5484d;color:#fff;font-size:9px;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;font-weight:700}
+.apptitle{display:flex;align-items:center;gap:8px;padding:4px 2px 8px;border-bottom:1px solid var(--phoneline);margin-bottom:8px}
+.apptitle button{font-size:13px;color:#7aa2ff}
+.apptitle h3{margin:0;font-size:14px;font-weight:600;flex:1}
+.prow{
+  display:block;width:100%;text-align:left;background:var(--phone2);border:1px solid var(--phoneline);
+  border-radius:11px;padding:9px 11px;margin-bottom:7px;font-size:12.5px;color:#e7ebf3;transition:background .15s;
+}
+.prow:active{background:#2b3140}
+.prow .sub{display:block;font-size:10.5px;color:#8b93a5;margin-top:2px;line-height:1.4}
+.prow.done{opacity:.42}
+.prow.done .sub:after{content:" ・済";color:#6b7383}
+.pnote{font-size:11px;color:#8b93a5;padding:4px 4px 10px;line-height:1.6}
+.pbal{background:linear-gradient(135deg,#243046,#1a2233);border-radius:13px;padding:12px;margin-bottom:10px;border:1px solid #2f3c55}
+.pbal .l{font-size:10px;color:#8fa3c4}
+.pbal .v{font-size:22px;font-weight:700;letter-spacing:.02em;color:#eaf0ff}
+.chat{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.bub{max-width:82%;padding:7px 10px;border-radius:13px;font-size:12px;line-height:1.5;position:relative}
+.bub.me{align-self:flex-end;background:#7ad07a;color:#10240f;border-bottom-right-radius:4px}
+.bub.them{align-self:flex-start;background:#2b3140;border-bottom-left-radius:4px}
+.bub .read{position:absolute;left:-30px;bottom:2px;font-size:9px;color:#8b93a5;white-space:nowrap}
+.bub.me .read{left:auto;right:100%;margin-right:5px}
+#phoneToggle{display:none}
+
+/* ---------- BOTTOM ---------- */
+#bottom{flex:0 0 auto;background:var(--bg);border-top:3px solid var(--wood2);z-index:20}
+#dialogue{
+  position:relative;padding:10px 14px 8px;min-height:96px;background:linear-gradient(#fffaf1,#f4ead9);
+  border-bottom:1px solid var(--line);cursor:pointer;
+}
+#dlgName{font-size:11.5px;font-weight:700;color:var(--accent);letter-spacing:.06em;min-height:16px}
+#dlgText{font-size:15px;line-height:1.75;min-height:52px;white-space:pre-wrap;color:var(--ink)}
+#dlgText .inner{color:#4b5a7a;font-style:italic}
+#dlgNext{
+  position:absolute;right:10px;bottom:6px;font-size:11.5px;font-weight:700;color:#ffeccd;
+  background:var(--accent);padding:4px 11px;border-radius:14px;animation:bob 1s infinite;
+  opacity:0;transition:opacity .15s;box-shadow:0 2px 6px #0002;
+}
+#dlgNext.on{opacity:1}
+@keyframes bob{50%{transform:translateY(3px)}}
+#choices{padding:6px 8px 10px;max-height:32dvh;display:flex;flex-direction:column;min-height:0;position:relative}
+#choices.locked #tabs,#choices.locked #actionList{opacity:.3;filter:grayscale(.5)}
+#lockNote{
+  position:absolute;inset:0;z-index:6;display:none;align-items:center;justify-content:center;
+  cursor:pointer;background:linear-gradient(180deg,#efe6d8bb,#efe6d8ee);
+}
+#choices.locked #lockNote{display:flex}
+#lockNote span{
+  background:var(--ink);color:#ffeccd;padding:9px 18px;border-radius:22px;font-size:13px;font-weight:700;
+  letter-spacing:.04em;box-shadow:0 4px 14px #0003;animation:bob 1.1s infinite;
+}
+#phoneLock{
+  position:absolute;inset:0;z-index:6;display:none;align-items:flex-end;justify-content:center;
+  padding-bottom:22px;background:#0b0d11aa;cursor:pointer;border-radius:24px;
+}
+#phoneLock span{background:#f0e6d6;color:#2a231c;padding:7px 14px;border-radius:18px;font-size:12px;font-weight:700;animation:bob 1.1s infinite}
+#tabs{display:flex;gap:4px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none;flex:0 0 auto}
+#tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:0 0 auto;padding:5px 11px;border-radius:16px;background:#e2d4c0;font-size:12px;font-weight:600;
+  color:var(--ink2);border:1px solid transparent;white-space:nowrap;position:relative;
+}
+.tab.on{background:var(--ink);color:#ffeccd}
+.tab .n{font-size:10px;opacity:.7;margin-left:3px}
+.tab .dot{position:absolute;top:2px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+#actionList{overflow-y:auto;display:flex;flex-direction:column;gap:5px;padding-right:2px;min-height:0}
+.act{
+  text-align:left;background:#fffaf1;border:1px solid var(--line);border-radius:10px;padding:8px 11px;
+  font-size:13.5px;color:var(--ink);box-shadow:0 1px 0 #0000000d;transition:transform .1s,background .15s;
+}
+.act:active{transform:translateY(1px);background:#f6ead4}
+.act .sub{display:block;font-size:11px;color:var(--ink2);margin-top:1px}
+.act.done{opacity:.45}
+.act.new{border-color:var(--accent);box-shadow:0 0 0 2px #c0563c22}
+.act.new:before{content:"NEW ";font-size:9px;font-weight:800;color:var(--accent);letter-spacing:.08em}
+.act.risky{border-color:#b8422f88;background:#fff3ee}
+.act.risky:after{content:"⚠";float:right;color:var(--ng);font-size:12px}
+.emptyNote{font-size:12px;color:var(--ink2);padding:10px 4px}
+
+/* ---------- OVERLAYS ---------- */
+.overlay{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:20px;background:#120f0bee}
+.overlay.on{display:flex}
+.card{max-width:520px;width:100%;background:var(--bg);border-radius:16px;padding:22px;max-height:88dvh;overflow-y:auto;box-shadow:0 20px 50px #000a}
+#title h1{font-family:var(--font);font-size:clamp(30px,8vw,54px);margin:.1em 0 .2em;letter-spacing:.06em;color:#ffeccd;text-align:center;text-shadow:0 4px 20px #0008}
+#title .sub{color:#c9b79a;text-align:center;font-size:13px;letter-spacing:.16em;margin-bottom:6px}
+#title .lead{color:#e8dcc7;font-size:13.5px;line-height:1.9;max-width:440px;margin:14px auto 0;text-align:left;background:#00000038;padding:14px 16px;border-radius:12px}
+#title .btns{display:flex;flex-direction:column;gap:8px;max-width:320px;margin:18px auto 0}
+.bigbtn{background:var(--accent);color:#fff5ec;padding:13px;border-radius:12px;font-size:16px;font-weight:700;letter-spacing:.08em;box-shadow:0 5px 0 #8d3b28}
+.bigbtn:active{transform:translateY(3px);box-shadow:0 2px 0 #8d3b28}
+.subbtn{background:#ffffff1a;color:#e8dcc7;padding:9px;border-radius:10px;font-size:13px}
+#endCard .etag{font-size:11px;letter-spacing:.3em;color:var(--accent);font-weight:800}
+#endCard h2{margin:.15em 0 .5em;font-size:clamp(24px,6vw,34px);letter-spacing:.05em}
+#endCard .edesc{font-size:14px;line-height:1.9;white-space:pre-wrap}
+#endCard .stats{display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;margin:16px 0;font-size:12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0}
+#endCard .stats div{display:flex;justify-content:space-between;gap:8px}
+#endCard .stats b{font-variant-numeric:tabular-nums}
+.endlist{font-size:11.5px;color:var(--ink2);line-height:1.8}
+.endlist .got{color:var(--ok);font-weight:700}
+#confirmCard{max-width:400px;text-align:center}
+#confirmCard p{font-size:14.5px;line-height:1.8;margin:4px 0 18px;white-space:pre-wrap}
+#confirmCard .row{display:flex;gap:10px}
+#confirmCard .row button{flex:1;padding:12px;border-radius:11px;font-size:14px;font-weight:700}
+#curtain{
+  position:fixed;inset:0;z-index:200;background:#120f0b;opacity:0;pointer-events:none;
+  transition:opacity .5s ease;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+}
+#curtain.on{opacity:1;pointer-events:all}
+#curtain .ct{color:#ffeccd;font-size:clamp(22px,6vw,40px);font-weight:800;letter-spacing:.32em;text-align:center}
+#curtain .cs{color:#c9b79a;font-size:13px;letter-spacing:.2em}
+.runTag{
+  background:var(--accent);color:#fff5ec;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;
+  letter-spacing:.06em;white-space:nowrap;display:none;
+}
+.runTag.on{display:inline-block}
+#newGameFlash{
+  position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:8;pointer-events:none;
+  background:#2a231cf0;color:#ffeccd;padding:7px 18px;border-radius:20px;font-size:13px;font-weight:700;
+  letter-spacing:.08em;opacity:0;box-shadow:0 4px 14px #0005;
+}
+#newGameFlash.on{animation:flashIn 2.6s ease-out}
+@keyframes flashIn{0%{opacity:0;transform:translate(-50%,-10px)}12%{opacity:1;transform:translate(-50%,0)}78%{opacity:1}100%{opacity:0}}
+.yes{background:var(--ng);color:#fff}
+.no{background:#e2d4c0;color:var(--ink)}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 860px){
+  #phone{
+    position:absolute;inset:0;flex:none;padding:8px;background:#000000cc;z-index:25;
+    transform:translateY(102%);transition:transform .3s cubic-bezier(.3,.9,.3,1);backdrop-filter:blur(2px);
+  }
+  #phone.open{transform:translateY(0)}
+  .handset{max-width:330px;aspect-ratio:auto;height:100%;max-height:100%}
+  #phoneToggle{
+    display:flex;align-items:center;gap:5px;position:absolute;right:10px;bottom:10px;z-index:24;
+    background:var(--ink);color:#ffeccd;padding:9px 14px;border-radius:22px;font-size:13px;font-weight:700;
+    box-shadow:0 4px 12px #0005;
+  }
+  #choices{max-height:38dvh}
+  #dlgText{font-size:14.5px}
+}
+@media (max-width: 560px){
+  #hud{gap:6px;padding:5px 8px}
+  .bill{font-size:11px}
+  .bill b{font-size:13px}
+  .clock{display:none}
+  .g .gl{font-size:9px}
+  .gauges{gap:6px}
+  #phoneToggle{z-index:26}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <span class="bill">お会計 <b>¥1,480</b></span>
+    <span class="clock" id="clock">13:12</span>
+    <span class="runTag" id="runTag"></span>
+    <div class="gauges">
+      <div class="g trust"><div class="gl"><span>信用度</span><span id="vTrust">50</span></div><div class="gb"><div class="gf" id="bTrust"></div></div></div>
+      <div class="g shame"><div class="gl"><span>羞恥心</span><span id="vShame">5</span></div><div class="gb"><div class="gf" id="bShame"></div></div></div>
+      <div class="g conf"><div class="gl"><span>困惑度</span><span id="vConf">0</span></div><div class="gb"><div class="gf" id="bConf"></div></div></div>
+    </div>
+    <div class="batt" id="battWrap"><div class="cell"><div class="lv" id="battLv"></div></div><span id="battTx">47%</span></div>
+    <div class="hud-right">
+      <button id="btnSound" title="音">🔊</button>
+      <button id="btnRestart" title="やり直す">↺</button>
+    </div>
+  </header>
+
+  <div id="stage">
+    <section id="scene">
+      <svg viewBox="0 0 640 400" preserveAspectRatio="xMidYMid slice" id="sceneSvg">
+        <defs>
+          <linearGradient id="wallG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#e8d8bd"/><stop offset="1" stop-color="#cfb897"/>
+          </linearGradient>
+          <linearGradient id="floorG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#a8794f"/><stop offset="1" stop-color="#8a5f3c"/>
+          </linearGradient>
+          <linearGradient id="winG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#cfe6f0"/><stop offset="1" stop-color="#a9cbd8"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="640" height="232" fill="url(#wallG)"/>
+        <rect x="0" y="232" width="640" height="168" fill="url(#floorG)"/>
+        <rect x="0" y="226" width="640" height="9" fill="#7a5133"/>
+        <g id="window">
+          <rect x="24" y="76" width="140" height="96" rx="5" fill="url(#winG)"/>
+          <rect x="24" y="76" width="140" height="96" rx="5" fill="none" stroke="#8b6a48" stroke-width="5"/>
+          <line x1="94" y1="76" x2="94" y2="172" stroke="#8b6a48" stroke-width="4"/>
+          <circle cx="55" cy="104" r="12" fill="#f2efe2" opacity=".7"/>
+          <rect x="108" y="132" width="40" height="40" fill="#9fbcae" opacity=".5"/>
+          <g id="phoneBox" opacity=".9">
+            <rect x="116" y="122" width="17" height="50" fill="#3f7f6f"/>
+            <rect x="118" y="126" width="13" height="18" fill="#cfe6e0"/>
+          </g>
+        </g>
+        <g id="board">
+          <rect x="200" y="96" width="118" height="72" rx="4" fill="#5c4630" stroke="#3f2f20" stroke-width="3"/>
+          <text x="259" y="119" text-anchor="middle" font-size="13" fill="#ffe6b0" font-family="sans-serif">本日の定食</text>
+          <text x="259" y="141" text-anchor="middle" font-size="17" fill="#ffd27a" font-family="sans-serif">¥1,480</text>
+          <text x="259" y="158" text-anchor="middle" font-size="8.5" fill="#e0c9a5" font-family="sans-serif">現金 / 一部キャッシュレス可</text>
+        </g>
+        <g id="signQR">
+          <rect x="336" y="104" width="84" height="62" rx="4" fill="#fff8ea" stroke="#b39b76" stroke-width="2"/>
+          <text x="378" y="121" text-anchor="middle" font-size="8.5" fill="#7a6244" font-family="sans-serif">ご利用いただけます</text>
+          <rect x="366" y="126" width="24" height="24" fill="#2a231c"/>
+          <rect x="370" y="130" width="6" height="6" fill="#fff8ea"/>
+          <rect x="381" y="140" width="6" height="6" fill="#fff8ea"/>
+          <text x="378" y="162" text-anchor="middle" font-size="8" fill="#7a6244" font-family="sans-serif">ニコニコPay</text>
+        </g>
+        <rect x="352" y="252" width="288" height="15" rx="3" fill="#a97c52"/>
+        <rect x="352" y="267" width="288" height="60" fill="#8a6340"/>
+        <g id="register">
+          <rect x="462" y="212" width="64" height="42" rx="4" fill="#4a4f57"/>
+          <rect x="470" y="219" width="48" height="19" rx="2" fill="#8fd0c0"/>
+          <rect x="470" y="242" width="48" height="6" rx="2" fill="#2f343b"/>
+        </g>
+        <g id="clerk" transform="translate(405,140)">
+          <ellipse cx="0" cy="126" rx="34" ry="7" fill="#00000022"/>
+          <path d="M-26 60 q26 -16 52 0 l6 66 h-64 z" fill="#3d4a5c"/>
+          <path d="M-22 78 q22 -8 44 0 l4 48 h-52 z" fill="#c0563c"/>
+          <rect x="-5" y="46" width="10" height="18" fill="#f0c9a8"/>
+          <circle cx="0" cy="26" r="26" fill="#f5d3b0"/>
+          <path d="M-27 20 q27 -34 54 0 q-10 -16 -27 -16 q-17 0 -27 16z" fill="#3a2b21"/>
+          <g id="clerkFace">
+            <g id="faceEyes">
+              <circle cx="-9" cy="26" r="2.6" fill="#2a231c"/>
+              <circle cx="9" cy="26" r="2.6" fill="#2a231c"/>
+            </g>
+            <path id="faceMouth" d="M-7 38 q7 5 14 0" stroke="#2a231c" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path id="faceBrowL" d="M-14 16 q5 -3 10 0" stroke="#2a231c" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+            <path id="faceBrowR" d="M4 16 q5 -3 10 0" stroke="#2a231c" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          </g>
+          <text id="clerkEmote" x="32" y="-4" font-size="22" opacity="0">…</text>
+        </g>
+        <g id="queue"></g>
+        <g id="neighbour" transform="translate(140,196)">
+          <ellipse cx="0" cy="112" rx="30" ry="6" fill="#00000022"/>
+          <rect x="-36" y="76" width="72" height="8" rx="3" fill="#b58a5e"/>
+          <rect x="-31" y="84" width="6" height="28" fill="#96693f"/>
+          <rect x="25" y="84" width="6" height="28" fill="#96693f"/>
+          <circle cx="-3" cy="22" r="20" fill="#eec8a4"/>
+          <path d="M-23 16 q20 -30 42 -2 q-4 -20 -21 -20 q-19 0 -21 22z" fill="#4a382c"/>
+          <path d="M-24 44 q21 -13 42 0 l5 34 h-52 z" fill="#6d7f8c"/>
+          <circle cx="-10" cy="22" r="2.2" fill="#2a231c"/><circle cx="4" cy="22" r="2.2" fill="#2a231c"/>
+          <path id="nbMouth" d="M-6 32 q6 3 12 0" stroke="#2a231c" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          <text id="nbEmote" x="24" y="0" font-size="18" opacity="0">…</text>
+        </g>
+        <g id="myChair">
+          <rect x="16" y="286" width="80" height="10" rx="3" fill="#7c5535"/>
+          <rect x="20" y="296" width="8" height="36" fill="#6b4629"/>
+          <rect x="84" y="296" width="8" height="36" fill="#6b4629"/>
+          <rect x="16" y="248" width="80" height="9" rx="3" fill="#8a5f3c" opacity=".85"/>
+          <rect x="20" y="257" width="7" height="30" fill="#6b4629" opacity=".85"/>
+        </g>
+        <g id="wallet" opacity="0">
+          <ellipse cx="56" cy="332" rx="26" ry="7" fill="#00000030"/>
+          <rect x="32" y="310" width="48" height="27" rx="4" fill="#5d3a22" stroke="#3d2413" stroke-width="2"/>
+          <rect x="32" y="321" width="48" height="5" fill="#8a5a3b"/>
+          <circle cx="56" cy="324" r="3.6" fill="#d8b25f"/>
+        </g>
+        <g id="myTable" transform="translate(268,268)">
+          <rect x="-150" y="0" width="300" height="14" rx="4" fill="#c19a6b"/>
+          <rect x="-150" y="14" width="300" height="120" fill="#a97f52"/>
+          <ellipse cx="-72" cy="3" rx="34" ry="11" fill="#f3efe6" stroke="#d9d2c2"/>
+          <ellipse cx="-72" cy="1" rx="24" ry="7.5" fill="#e6e0d2"/>
+          <rect x="4" y="-26" width="22" height="30" rx="3" fill="#cfe4ee" opacity=".85"/>
+          <rect x="4" y="-10" width="22" height="14" rx="2" fill="#a8cfe0" opacity=".9"/>
+          <g id="receipt"><rect x="56" y="-8" width="34" height="12" fill="#fffdf5" stroke="#ded6c4"/><line x1="60" y1="-4" x2="84" y2="-4" stroke="#c9c0ac"/><line x1="60" y1="0" x2="78" y2="0" stroke="#c9c0ac"/></g>
+        </g>
+        <g id="me" transform="translate(150,356)">
+          <ellipse cx="0" cy="16" rx="54" ry="44" fill="#3a2b21"/>
+          <ellipse cx="0" cy="-10" rx="38" ry="30" fill="#3a2b21"/>
+        </g>
+        <text id="clockFace" x="596" y="34" text-anchor="middle" font-size="10" fill="#7a6244" font-family="sans-serif"></text>
+      </svg>
+      <div id="sceneFx"></div>
+      <div id="dramaText"></div>
+      <div id="noticeLayer"></div>
+      <div id="newGameFlash"></div>
+      <div id="deltaLayer"></div>
+      <button id="phoneToggle">📱 スマホ<span id="ptBadge"></span></button>
+    </section>
+
+    <aside id="phone">
+      <div class="handset" id="handset">
+        <div class="notch"></div>
+        <div class="pstat"><span id="pClock">13:12</span><span id="pBatt">🔋47%</span></div>
+        <div class="pscreen" id="pscreen"></div>
+        <div id="phoneLock"><span>クリックで進む ▼</span></div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="bottom">
+    <div id="dialogue">
+      <div id="dlgName"></div>
+      <div id="dlgText"></div>
+      <div id="dlgNext">クリックで次へ ▼</div>
+    </div>
+    <div id="choices">
+      <div id="tabs"></div>
+      <div id="actionList"></div>
+      <div id="lockNote"><span>会話中 — クリックで進む ▼</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay on" id="title">
+  <div style="max-width:560px;width:100%">
+    <div class="sub">決済脱出アドベンチャー</div>
+    <h1>お会計になります</h1>
+    <div class="lead" id="titleLead">
+      定食、うまかった。<br>
+      店員さんが言う。「お会計、1,480円になります」<br>
+      ポケット。カバン。上着。もう一度ポケット。<br>
+      <br>
+      ……ない。<br>
+      <br>
+      財布を忘れた。<br>
+      でもまあ、今どきスマホがあれば何とかなるだろ。
+    </div>
+    <div class="btns">
+      <button class="bigbtn" id="btnStart">はじめる</button>
+      <button class="subbtn" id="btnSkip">オープニングを飛ばす</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="endOv">
+  <div class="card" id="endCard"></div>
+</div>
+
+<div id="curtain"><div class="ct" id="curtainTxt"></div><div class="cs" id="curtainSub"></div></div>
+
+<div class="overlay" id="confirmOv">
+  <div class="card" id="confirmCard">
+    <p id="confirmText"></p>
+    <div class="row"><button class="no" id="cNo">やめておく</button><button class="yes" id="cYes">やる</button></div>
+  </div>
+</div>
+
+<script>
+/* engine-core.js — 音・状態・HUD・シーン描画・会話プレイヤー */
+/* =========================================================
+   お会計になります  ―  engine
+   ========================================================= */
+"use strict";
+
+/* ---------- tiny audio ---------- */
+const Snd = (()=>{
+  let ctx=null, on=true;
+  function ac(){ if(!ctx){ try{ctx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){} } return ctx; }
+  function tone(f,d,type,vol,slideTo){
+    if(!on) return; const c=ac(); if(!c) return;
+    const o=c.createOscillator(), g=c.createGain();
+    o.type=type||'sine'; o.frequency.setValueAtTime(f,c.currentTime);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo,c.currentTime+d);
+    g.gain.setValueAtTime(0.0001,c.currentTime);
+    g.gain.exponentialRampToValueAtTime(vol||0.06,c.currentTime+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+d);
+    o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+d+0.02);
+  }
+  return {
+    toggle(){ on=!on; return on; },
+    isOn(){ return on; },
+    tap(){ tone(620,0.05,'square',0.03); },
+    type(){ tone(1400,0.012,'square',0.008); },
+    ok(){ tone(660,0.09,'triangle',0.06); setTimeout(()=>tone(990,0.16,'triangle',0.06),90); },
+    fail(){ tone(300,0.16,'sawtooth',0.05,140); },
+    deny(){ tone(200,0.3,'square',0.04,90); },
+    drama(){ tone(58,1.5,'sine',0.14); tone(87,1.5,'sine',0.05); },
+    ring(){ tone(440,0.3,'sine',0.05); setTimeout(()=>tone(440,0.3,'sine',0.05),450); },
+    ding(){ tone(880,0.07,'sine',0.05); setTimeout(()=>tone(1320,0.13,'sine',0.05),70); },
+    buzz(){ tone(120,0.5,'sawtooth',0.05); }
+  };
+})();
+
+/* ---------- helpers ---------- */
+const $ = s=>document.querySelector(s);
+const $$ = s=>Array.from(document.querySelectorAll(s));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const yen = n=>'¥'+n.toLocaleString('ja-JP');
+
+/* ---------- state ---------- */
+let S;
+function freshState(){
+  return {
+    trust:50, shame:5, conf:0,
+    fugitive:0, annoy:0, kindness:70, attention:0,
+    batt:47, min:0, acts:0,
+    flags:new Set(), done:new Set(), count:{},
+    unlocked:new Set(), seenNew:new Set(),
+    app:null, playing:false, ended:null, waitCount:0,
+    tab:'search', log:[]
+  };
+}
+function has(f){ return S.flags.has(f); }
+function on(f){ S.flags.add(f); }
+function clockStr(){
+  const t=13*60+12+S.min;
+  return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
+}
+
+/* ---------- notices & deltas ---------- */
+function notice(txt,kind){
+  const el=document.createElement('div');
+  el.className='notice'+(kind?' '+kind:''); el.textContent=txt;
+  $('#noticeLayer').appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .4s'; el.style.opacity='0'; setTimeout(()=>el.remove(),400); },2600);
+}
+const PARAM_LABEL={trust:'信用度',shame:'羞恥心',conf:'店員の困惑',fugitive:'逃亡犯感',annoy:'面倒な客度',kindness:'店員の優しさ',attention:'周囲の注目度'};
+function showDelta(key,v){
+  const el=document.createElement('div');
+  el.className='delta';
+  el.textContent=PARAM_LABEL[key]+' '+(v>0?'+':'')+v;
+  const bad=(key==='trust'||key==='kindness')?v<0:v>0;
+  el.style.color= bad?'#ff9f8f':'#9fe8bf';
+  el.style.left=(18+Math.random()*46)+'%';
+  el.style.top=(30+Math.random()*34)+'%';
+  $('#deltaLayer').appendChild(el);
+  setTimeout(()=>el.remove(),1400);
+}
+function applyFx(fx){
+  if(!fx) return;
+  let i=0;
+  for(const k in fx){
+    const v=fx[k]; if(!v) continue;
+    S[k]=clamp(S[k]+v, 0, k==='trust'||k==='kindness'?100:200);
+    setTimeout(((kk,vv)=>()=>showDelta(kk,vv))(k,v), i*180); i++;
+  }
+  renderHUD();
+}
+
+/* ---------- HUD ---------- */
+function renderHUD(){
+  $('#vTrust').textContent=S.trust; $('#bTrust').style.width=S.trust+'%';
+  $('#vShame').textContent=S.shame; $('#bShame').style.width=clamp(S.shame,0,100)+'%';
+  $('#vConf').textContent=S.conf;   $('#bConf').style.width=clamp(S.conf,0,100)+'%';
+  $('#clock').textContent=clockStr();
+  $('#pClock').textContent=clockStr();
+  const b=Math.round(S.batt);
+  $('#battLv').style.width=clamp(b,0,100)+'%';
+  $('#battTx').textContent=b+'%';
+  $('#pBatt').textContent=(b<=10?'🪫':'🔋')+b+'%';
+  const w=$('#battWrap'); w.className='batt'+(b<=10?' crit':(b<=20?' low':''));
+  $('#handset').classList.toggle('dead', b<=0);
+}
+
+/* ---------- scene ---------- */
+const FACES={
+  normal:{eyes:['circle','circle'],mouth:'M-7 38 q7 5 14 0',brow:'flat'},
+  smile:{mouth:'M-8 37 q8 7 16 0',brow:'up'},
+  worry:{mouth:'M-7 40 q7 -4 14 0',brow:'down'},
+  confused:{mouth:'M-7 39 q4 -4 7 1 q3 4 7 -1',brow:'tilt'},
+  gentle:{mouth:'M-7 38 q7 6 14 0',brow:'up'},
+  blank:{mouth:'M-7 39 h14',brow:'flat'}
+};
+function setFace(name){
+  const f=FACES[name]||FACES.normal;
+  $('#faceMouth').setAttribute('d',f.mouth);
+  const bl=$('#faceBrowL'), br=$('#faceBrowR');
+  const B={up:['M-14 15 q5 -4 10 -1','M4 14 q5 3 10 1'],
+           flat:['M-14 16 q5 -3 10 0','M4 16 q5 -3 10 0'],
+           down:['M-14 17 q5 -4 10 -4','M4 13 q5 4 10 4'],
+           tilt:['M-14 16 q5 -5 10 -3','M4 14 q5 1 10 3']};
+  const s=B[f.brow]||B.flat; bl.setAttribute('d',s[0]); br.setAttribute('d',s[1]);
+}
+function clerkEmote(ch){
+  const e=$('#clerkEmote'); e.textContent=ch||'';
+  e.setAttribute('opacity', ch?'1':'0');
+  if(ch) setTimeout(()=>e.setAttribute('opacity','0'),2200);
+}
+function nbEmote(ch){
+  const e=$('#nbEmote'); e.textContent=ch||'';
+  e.setAttribute('opacity', ch?'1':'0');
+  if(ch) setTimeout(()=>e.setAttribute('opacity','0'),2200);
+}
+const QUEUE_COLORS=['#7d6b8f','#5f7f6b','#8f6b5f','#5f6f8f','#8f8a5f'];
+function renderScene(){
+  // clerk expression by confusion
+  if(S.conf>=70) setFace('confused');
+  else if(S.conf>=40) setFace('worry');
+  else if(S.kindness>=70) setFace('gentle');
+  else setFace('normal');
+  // queue grows with time
+  const q=$('#queue'); const want=clamp(Math.floor((S.min-6)/5),0,5);
+  while(q.childElementCount>want) q.lastElementChild.remove();
+  while(q.childElementCount<want){
+    const i=q.childElementCount;
+    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('transform','translate('+(592-i*42)+',206) scale(.62)');
+    g.setAttribute('opacity','0');
+    g.innerHTML='<ellipse cx="0" cy="126" rx="24" ry="6" fill="#00000022"/>'+
+      '<path d="M-22 56 q22 -14 44 0 l5 66 h-54 z" fill="'+QUEUE_COLORS[i%5]+'"/>'+
+      '<circle cx="0" cy="26" r="22" fill="#eec8a4"/>'+
+      '<path d="M-23 18 q23 -30 46 0 q-6 -20 -23 -20 q-17 0 -23 20z" fill="#3a2b21"/>'+
+      '<circle cx="-8" cy="26" r="2" fill="#2a231c"/><circle cx="8" cy="26" r="2" fill="#2a231c"/>';
+    q.appendChild(g);
+    requestAnimationFrame(()=>{ g.style.transition='opacity .6s'; g.setAttribute('opacity','1'); });
+  }
+  $('#clockFace').textContent=clockStr();
+}
+function fxBlack(v){ $('#sceneFx').classList.toggle('on',!!v); }
+function fxShake(){ const s=$('#scene'); s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake'); }
+function fxDrama(txt){
+  const d=$('#dramaText');
+  if(!txt){ d.classList.remove('on'); return; }
+  d.textContent=txt; d.classList.remove('on'); void d.offsetWidth; d.classList.add('on'); Snd.drama();
+}
+
+/* ---------- dialogue player ---------- */
+const NAME={
+  me:'主人公', inner:'（心の声）', clerk:'店員', clerk2:'店員（男性）', mgr:'店長',
+  nb:'隣の客', nb2:'学生風の客', sys:'', phone:'📱', ai:'AIチャット',
+  voice:'自動音声', friend:'友人', mom:'母', tel:'☎', line:'LINE'
+};
+let dq=[], dqDone=null, typing=null, typedFull='';
+function setLock(v){
+  document.getElementById('choices').classList.toggle('locked', !!v);
+  document.getElementById('phoneLock').style.display = v ? 'flex' : 'none';
+}
+function play(lines, done){
+  dq = (lines||[]).slice(); dqDone = done||null; S.playing=true;
+  $('#dlgNext').classList.remove('on');
+  setLock(true); renderActions();
+  nextLine();
+}
+function nextLine(){
+  if(typing){ clearInterval(typing); typing=null; }
+  if(!dq.length){
+    S.playing=false; $('#dlgNext').classList.remove('on');
+    setLock(false);
+    const d=dqDone; dqDone=null; renderActions(); renderPhone();
+    if(d) d();
+    return;
+  }
+  const L=dq.shift();
+  const who=L[0], text=L[1]||'', o=L[2]||{};
+  if(o.face) setFace(o.face);
+  if(o.emote) clerkEmote(o.emote);
+  if(o.nbEmote) nbEmote(o.nbEmote);
+  if(o.fx==='black') fxBlack(true);
+  if(o.fx==='unblack'){ fxBlack(false); fxDrama(null); }
+  if(o.fx==='shake') fxShake();
+  if(o.drama) fxDrama(o.drama);
+  if(o.sfx && Snd[o.sfx]) Snd[o.sfx]();
+  if(o.batt) { S.batt=clamp(S.batt+o.batt,0,100); renderHUD(); }
+  if(o.wallet){ const w=document.getElementById('wallet'); w.style.transition='opacity 1.6s'; w.setAttribute('opacity','1'); }
+  $('#dlgName').textContent = NAME[who]!==undefined?NAME[who]:who;
+  const target=$('#dlgText');
+  target.className = (who==='inner')?'':'';
+  typedFull=text;
+  target.innerHTML='';
+  const span=document.createElement('span');
+  if(who==='inner') span.className='inner';
+  target.appendChild(span);
+  let i=0;
+  const speed = o.slow?46:(text.length>60?16:22);
+  typing=setInterval(()=>{
+    i++; span.textContent=text.slice(0,i);
+    if(i%3===0) Snd.type();
+    if(i>=text.length){ clearInterval(typing); typing=null; $('#dlgNext').classList.add('on'); }
+  }, speed);
+  if(o.wait){ setTimeout(()=>{}, 0); }
+}
+function advance(){
+  if(!S.playing) return;
+  if(typing){ clearInterval(typing); typing=null;
+    $('#dlgText').firstChild.textContent=typedFull; $('#dlgNext').classList.add('on'); return; }
+  nextLine();
+}
+$('#dialogue').addEventListener('click', advance);
+$('#lockNote').addEventListener('click', advance);
+$('#phoneLock').addEventListener('click', advance);
+$('#scene').addEventListener('click', e=>{ if(e.target.closest('#phoneToggle')) return; if(S.playing) advance(); });
+$('#choices').addEventListener('click', e=>{ if(S.playing){ e.preventDefault(); e.stopPropagation(); advance(); } }, true);
+$('#pscreen').addEventListener('click', e=>{ if(S.playing){ e.preventDefault(); e.stopPropagation(); advance(); } }, true);
+document.addEventListener('keydown', e=>{
+  if(e.key===' '||e.key==='Enter'){ if(S.playing){ e.preventDefault(); advance(); } }
+});
+
+/* data-actions-basic.js — スマホのアプリ定義と、探す／その他の行動 */
+/* =========================================================
+   APPS
+   ========================================================= */
+const APPS=[
+  {id:'qr',    name:'QR決済',  icon:'💴', color:'#e8453c', note:'インストール済みの決済アプリ。たぶん何とかなる。'},
+  {id:'line',  name:'ライソ',  icon:'💬', color:'#22c55e', note:'連絡先は多い。連絡できる人は少ない。'},
+  {id:'tel',   name:'電話',    icon:'📞', color:'#2fbf5f', note:'最後に電話をかけたのはいつだろう。'},
+  {id:'bank',  name:'銀行',    icon:'🏦', color:'#2563eb', note:'金はある。ここにある。'},
+  {id:'pasmo', name:'PASMO',   icon:'🚃', color:'#d946ef', note:'残高は十分。使えるとは言っていない。'},
+  {id:'cont',  name:'連絡先',  icon:'📇', color:'#64748b', note:'328件。'},
+  {id:'web',   name:'ブラウザ',icon:'🌐', color:'#0ea5e9', note:'困った時のインターネット。'},
+  {id:'ai',    name:'AIチャット',icon:'✨',color:'#7c3aed', note:'落ち着いてください、と言われる。'},
+  {id:'sns',   name:'SNS',     icon:'🐦', color:'#111827', note:'フォロワー412人。'},
+  {id:'flea',  name:'フリマ',  icon:'🛍', color:'#f97316', note:'物は売れる。今日中には売れない。'},
+  {id:'camera',name:'カメラ',  icon:'📷', color:'#475569', note:''},
+  {id:'set',   name:'設定',    icon:'⚙️', color:'#6b7280', note:''}
+];
+
+/* =========================================================
+   ACTIONS
+   ========================================================= */
+const ACTS=[
+
+/* ---------- 探す・思い出す ---------- */
+{id:'pocket', cat:'search', label:'ポケットを探る', sub:'ないのは分かっているが', max:5, keep:true,
+ linesBy:[
+  [['me','ポケットに手を入れる。'],['sys','……ハンカチ。']],
+  [['me','もう一度、同じポケット。'],['sys','……ハンカチ。同じハンカチ。']],
+  [['inner','いや、待て。反対側だ。'],['sys','……家の鍵。'],['inner','鍵はある。鍵はあるんだよ。']],
+  [['me','四回目。'],['sys','ガム。'],['inner','ガムはいらない。']],
+  [['inner','五回目。'],['sys','何も出てこない。'],['inner','人間は同じポケットを五回探せる。'],['inner','それが分かっただけでも収穫だ。']]
+ ],
+ fx:{shame:2}, unlock:['bag','jacket','recall'] },
+
+{id:'bag', cat:'search', label:'カバンの中を探す', sub:'3回まで探せる', max:3, keep:true,
+ linesBy:[
+  [['me','カバンを膝に乗せて、中を覗く。'],['sys','ノートPC。充電器。イヤホン。名刺入れ。'],['inner','財布サイズのものが、ひとつもない。']],
+  [['me','二回目。今度は全部出す。'],['sys','テーブルの上に、私物が並ぶ。'],['clerk','……大丈夫ですか？',{face:'gentle',emote:'？'}],['me','大丈夫です！',{}],['inner','大丈夫ではない。'] ],
+  [['me','三回目。もう入っていないことは分かっている。'],['inner','でも人は探す。'],['inner','三回目のカバンの中には、二回目までの絶望しか入っていない。']]
+ ],
+ fx:{shame:4, attention:5}, unlock:['meishi','earphone'] },
+
+{id:'jacket', cat:'search', label:'上着の内ポケットを確認する', sub:'ここが本命だと思っている',
+ lines:[['inner','そうだ、内ポケット。'],['inner','俺は財布を内ポケットに入れる男だった気がする。'],['me','……。'],
+        ['sys','出てきたのは、レシートが一枚。'],['sys','先週のコンビニ。おにぎり2個。'],['inner','あの日の俺は、支払いができていた。'],['inner','羨ましい。']],
+ fx:{shame:3}, unlock:['receipt'] },
+
+{id:'chair', cat:'search', label:'椅子の下を見る', sub:'一応',
+ lines:[['me','腰を浮かせて、椅子の下をのぞく。'],['sys','薄暗い。'],['sys','床。椅子の脚。埃。'],['inner','ない。'],
+        ['inner','まあ、そんな都合よく落ちてるわけないよな。'],['clerk','……',{face:'gentle'}]],
+ fx:{shame:2}, unlock:['table_under'] },
+
+{id:'table_under', cat:'search', label:'テーブルの下を見る', sub:'椅子の下がダメなら',
+ lines:[['me','今度はテーブルの下に頭を突っ込む。'],['sys','ガン。'],['inner','痛い。'],['sys','おでこをぶつけただけだった。'],
+        ['clerk','大丈夫ですか！？',{face:'worry',emote:'！'}],['me','大丈夫です……',{}]],
+ fx:{shame:8, conf:5, attention:8} },
+
+{id:'teleport', cat:'search', label:'財布が瞬間移動した可能性を考える', sub:'科学的に検討する',
+ lines:[['inner','待てよ。'],['inner','俺は確かに財布を持って家を出た……のか？'],['inner','いや、持って出たとして、途中で消えることはあるか？'],
+        ['inner','物質は保存される。財布も保存される。'],['inner','ということは、財布は今この瞬間、地球上のどこかに必ず存在している。'],
+        ['inner','……それが分かったところで、1,480円は払えない。'],['sys','無駄な思考に1分を使った。']],
+ fx:{shame:1}, time:2 },
+
+{id:'recall', cat:'search', label:'家を出る前の行動を思い出す', sub:'記憶をたどる',
+ lines:[['inner','今朝。'],['inner','起きて、顔を洗って、スマホを充電器から外して……'],['sys','（回想）玄関。'],
+        ['sys','（回想）鍵を持つ。スマホを持つ。'],['sys','（回想）引き出しの上に、財布。'],['inner','……あ。'],
+        ['inner','スマホと鍵だけ持って出た。'],['inner','スマホがあれば何とかなると思って。'],['inner','思ってたんだよ、さっきまでは。']],
+ fx:{}, unlock:['teiki'], time:2 },
+
+{id:'teiki', cat:'search', label:'非常用の一万円を思い出す', sub:'こういう時のための備えがあったはず',
+ lines:[['inner','待てよ……！',{emote:''}],['inner','俺には備えがある。'],['sys','（回想）3年前。'],
+        ['sys','（回想）若い頃の自分が、定期入れの内側に一万円札をそっと折りたたんで入れている。'],
+        ['sys','（回想）「財布忘れた時、絶対これで助かるから」'],['me','こういう時のための、俺だ！',{}],
+        ['inner','定期入れ、定期入れ……'],['sys','ない。'],['inner','……あれ？'],['sys','（回想）一か月前。'],
+        ['sys','（回想）ニコニコ顔の自分がスマホを掲げている。'],['sys','（回想）「モバイルPASMOにしたら、定期入れ持ち歩かなくてよくない？」'],
+        ['sys','（回想）定期入れを、自宅の引き出しにしまう。'],['sys','（回想）一万円札ごと。'],
+        ['sys','', {fx:'black'}],['inner','馬鹿野郎ォ！',{drama:'一万円は、引き出しの中'}],
+        ['sys','',{fx:'unblack'}],['inner','過去の俺、ありがとう。'],['inner','一か月前の俺、お前だけは絶対に許さない。']],
+ fx:{shame:10}, unlock:['pasmo_open'], time:2 },
+
+{id:'meishi', cat:'search', label:'名刺入れを確認する', sub:'名刺は8枚ある',
+ lines:[['sys','名刺入れ。中に自分の名刺が8枚。'],['inner','自分の名刺は、自分に対して何の効力もない。'],
+        ['inner','だが、身元を示すものではある。'],['inner','……身元を示すもの、これしかない。']],
+ unlock:['nb_talk','clerk_meishi'] },
+
+{id:'earphone', cat:'search', label:'イヤホンをつけて現実逃避する', sub:'一時的に世界から降りる',
+ lines:[['me','イヤホンを耳に入れる。'],['sys','無音。'],['sys','音楽を流す気にはならない。'],
+        ['inner','世界が少し遠くなった。'],['inner','店員さんが、まだこっちを見ている。'],
+        ['inner','遠くなっても、1,480円は近い。'],['me','……',{}],['sys','イヤホンを外した。']],
+ fx:{shame:3, conf:3}, unlock:['flea_open'] },
+
+{id:'receipt', cat:'search', label:'テーブルの伝票を見つめる', sub:'1,480円',
+ lines:[['sys','伝票。'],['sys','日替わり定食　1,480円'],['inner','安い。'],['inner','安いんだよ、本来。'],
+        ['inner','この金額なら、普通は財布から千円札を出して、五百円玉を足して、20円のお釣りをもらって終わりだ。'],
+        ['inner','その「普通」が、今日は一段も進まない。']],
+ fx:{shame:2} },
+
+{id:'mirror', cat:'search', label:'スマホの黒い画面で自分の顔を見る', sub:'今どんな顔をしているのか',
+ req:()=>true,
+ lines:[['sys','画面を消して、黒い鏡に自分を映す。'],['sys','思ったより、平然としている。'],
+        ['inner','あ、意外と大丈夫そうな顔してるじゃん俺。'],['sys','よく見ると、額に汗が浮いている。'],['inner','大丈夫そうな顔をした、汗だくの男だ。']],
+ fx:{shame:4} },
+
+{id:'breathe', cat:'misc', label:'深呼吸する', sub:'落ち着け', max:3, keep:true,
+ linesBy:[
+  [['me','すー……はー……'],['inner','落ち着け。'],['inner','たかが1,480円だ。'],['inner','人生で1,480円が払えなかったことはない。'],['inner','今日が初めてなだけだ。']],
+  [['me','すー……はー……'],['inner','落ち着いた。'],['inner','落ち着いたが、金はない。']],
+  [['me','すー……'],['clerk','あの、お客様……？',{face:'worry',emote:'？'}],['me','はい！',{}],['inner','深呼吸しすぎると不審者になる。']]
+ ],
+ fx:{conf:3} },
+
+{id:'water', cat:'misc', label:'水を飲む', sub:'無料である', max:3, keep:true,
+ linesBy:[
+  [['me','コップの水を飲む。'],['sys','冷たい。'],['inner','水は無料だ。'],['inner','今の俺に払えるのは、この水の代金だけ。ゼロ円。']],
+  [['me','おかわりの水を飲む。'],['inner','飲めば飲むほど、席を立ちにくくなっている気がする。']],
+  [['sys','コップが空になった。'],['clerk','お水、お持ちしましょうか？',{face:'gentle'}],['me','あっ、いえ、大丈夫です！',{}],['inner','優しい。優しいのがつらい。']]
+ ],
+ fx:{shame:2} },
+
+{id:'gum', cat:'misc', label:'ガムを噛む', sub:'落ち着くらしい',
+ lines:[['me','ガムを口に入れる。'],['sys','ミント。'],['inner','爽やかだ。'],['inner','状況は何ひとつ爽やかではない。'],
+        ['inner','……このガム、いくらだったっけ。'],['inner','120円。'],['inner','あの時の俺は、120円を払えた。']],
+ fx:{shame:2} },
+
+{id:'wait', cat:'misc', label:'とりあえず待つ', sub:'時間が解決することもある', max:99, keep:true, time:4,
+ fn:()=>{ S.waitCount++; },
+ linesBy:[
+  [['me','……'],['sys','店内BGMが流れている。'],['sys','他の客が、普通に食事をしている。'],['inner','世界は、俺の会計に興味がない。'],['sys','4分経過。']],
+  [['sys','待つ。'],['sys','店員さんが、伝票をちらっと見る。'],['inner','見た。今、見た。'],['sys','4分経過。']],
+  [['sys','待つ。'],['sys','厨房から、いい匂いがしてくる。'],['inner','次の客の分だ。'],['inner','店は回っている。俺だけが止まっている。'],['sys','4分経過。']],
+  [['sys','待つ。'],['sys','スマホを見る。通知はない。'],['inner','こんなに通知が来ないスマホだったっけ。'],['sys','4分経過。']],
+  [['sys','待つ。'],['sys','……。'],['inner','待つのも、立派な戦略だ。'],['inner','そう思わないとやっていられない。'],['sys','4分経過。']]
+ ],
+ fx:{conf:2} }
+];
+
+/* data-actions-phone.js — スマホ各アプリの行動 */
+/* ---------- スマホ：QR決済 ---------- */
+ACTS.push(
+{id:'qr_paypay', cat:'phone', app:'qr', label:'ペイペイ君で払う', sub:'残高 8,320円',
+ lines:[['me','あ、じゃあペイペイ君で。',{}],['clerk','申し訳ありません、ペイペイ君は使えないんです……',{face:'worry'}],
+        ['me','え',{}],['inner','嘘だろ。'],['inner','日本中どこでも使えるはずのやつだぞ。'],
+        ['clerk','うち、去年やめちゃって……',{face:'worry'}],['inner','やめるな。']],
+ fx:{conf:5}, unlock:['qr_rakuten','qr_d','qr_au','clerk_askpay'] },
+
+{id:'qr_rakuten', cat:'phone', app:'qr', label:'ラクテンペイで払う', sub:'ポイント 1,204pt',
+ lines:[['me','じゃあラクテンペイで。',{}],['clerk','すみません、それも……',{face:'worry'}],
+        ['inner','ポイントが1,204ポイントある。'],['inner','あと276ポイントあれば足りたのに、という話ですらない。']],
+ fx:{conf:4} },
+
+{id:'qr_d', cat:'phone', app:'qr', label:'ｄ払い的なやつで払う', sub:'',
+ lines:[['me','ｄ払い的なやつは……',{}],['clerk','ごめんなさい、対応してなくて',{face:'worry'}],
+        ['inner','この店、何なら使えるんだ。']],
+ fx:{conf:4} },
+
+{id:'qr_au', cat:'phone', app:'qr', label:'auペイっぽいので払う', sub:'アプリを開くのは3年ぶり',
+ lines:[['sys','アプリを起動。'],['sys','「アップデートが必要です」'],['sys','ダウンロード中…… 214MB'],
+        ['inner','214MB。'],['inner','1,480円のために214MB。'],['sys','残り 4分12秒'],['inner','待てない。'],['sys','キャンセルした。']],
+ fx:{conf:3}, batt:-5, time:2 },
+
+{id:'qr_install', cat:'phone', app:'qr', label:'ニコニコPayを今すぐインストールする', sub:'これが唯一の対応決済', req:()=>has('knowPay'),
+ lines:[['inner','よし、入れる。今ここで入れる。'],['sys','ストアからダウンロード。34MB。'],['sys','インストール完了。'],
+        ['me','早い！',{}],['sys','「はじめる」'],['sys','電話番号を入力してください。'],['me','090-…',{}],
+        ['sys','SMSに認証コードを送信しました。'],['sys','コード入力。'],['sys','認証成功。'],['me','いける！',{}],
+        ['sys','「本人確認をおこないます」'],['inner','来た。'],['sys','「運転免許証またはマイナンバーカードを撮影してください」'],
+        ['me','……',{}],['inner','財布の中だ。'],['sys','「後で行う」を選択。'],['me','スキップできた！',{}],
+        ['sys','「お支払い方法を登録してください」'],['sys','クレジットカード番号を入力：'],
+        ['sys','',{fx:'black'}],['me','カードは財布の中だよ！',{drama:'あと一歩',sfx:'fail'}],
+        ['sys','',{fx:'unblack'}],['inner','8分かけて、支払えないアプリが1つ増えた。']],
+ fx:{conf:8, shame:8}, batt:-9, time:8, unlock:['qr_charge','qr_recall_card'] },
+
+{id:'qr_recall_card', cat:'phone', app:'qr', label:'クレカ番号を記憶から絞り出す', sub:'16桁',
+ lines:[['inner','番号を覚えていればいい。'],['inner','4桁ずつだ。えーと、5……いや4から始まる。'],
+        ['inner','4980……4890……'],['sys','試しに入力してみる。'],['sys','「カード番号が正しくありません」'],
+        ['inner','有効期限も分からない。'],['inner','セキュリティコードに至っては見たことすらない。'],
+        ['inner','俺は自分のカードのことを、何も知らない。']],
+ fx:{conf:3}, batt:-2, time:2 },
+
+{id:'qr_charge', cat:'phone', app:'qr', label:'アプリ残高にチャージする', sub:'銀行から入れればいい', req:()=>has('knowPay'),
+ lines:[['inner','そうだ、チャージすればいい。'],['sys','「チャージ方法を選択」'],['sys','・銀行口座（登録が必要）'],
+        ['sys','・セブン銀行ATM（現金）'],['sys','・クレジットカード'],['inner','現金があればここにいない。'],
+        ['sys','銀行口座を選択。'],['sys','「キャッシュカードの下4桁を入力してください」'],
+        ['me','……',{}],['inner','キャッシュカードは、財布の中です。'],['sys','詰み。']],
+ fx:{conf:5}, batt:-3, time:3 },
+
+{id:'qr_sendmoney', cat:'phone', app:'qr', label:'誰かに送金してもらう', sub:'アプリ間送金という手がある', req:()=>has('lineAny'),
+ lines:[['inner','送金だ。アプリで送ってもらえばいい。'],['sys','友人に送金依頼を送信。'],['sys','……'],
+        ['sys','3分後、返信。'],['friend','送金ってどうやるの'],['inner','だめだ。'],
+        ['friend','ていうか俺そのアプリ入れてない'],['inner','入れてる人が誰もいないアプリ、それがニコニコPay。']],
+ fx:{conf:3}, batt:-3, time:4 }
+);
+
+/* ---------- スマホ：ライソ ---------- */
+ACTS.push(
+{id:'line_family', cat:'phone', app:'line', label:'家族に「財布忘れた」と送る', sub:'既読 —',
+ lines:[['sys','母：トーク画面。最後のやりとりは2月。'],['me','「財布忘れた」「店まで来られる？」',{}],['sys','送信。'],
+        ['sys','……'],['sys','既読はつかない。'],['inner','母はスマホを見ない。'],['inner','見ない人だから、今まで平和だったんだ。']],
+ fx:{}, batt:-2, chat:'family', flag:'lineAny', unlock:['tel_mom','line_group'] },
+
+{id:'line_friend', cat:'phone', app:'line', label:'友人ヤマダに送る', sub:'昨年12月以来',
+ lines:[['me','「やばい 財布忘れた」「◯◯の定食屋にいる」',{}],['sys','送信。'],['sys','既読つかず。'],
+        ['inner','平日の昼だ。働いている。'],['inner','俺も働いているはずの時間だ。']],
+ fx:{}, batt:-2, chat:'friend', flag:'lineAny', unlock:['tel_friendA','line_old'] },
+
+{id:'line_col', cat:'phone', app:'line', label:'同僚に送る', sub:'仕事の連絡しかしていない相手',
+ lines:[['me','「すみません、財布忘れて詰んでます」',{}],['sys','送信。'],['sys','既読。'],['me','来た！',{}],
+        ['sys','……'],['sys','返信はない。'],['inner','既読だけついて返信が来ないのが、一番きつい。'],
+        ['inner','あの人は今、俺の「詰んでます」を読んで、会議に戻った。']],
+ fx:{shame:5}, batt:-2, chat:'col', flag:'lineAny', unlock:['line_old'] },
+
+{id:'line_old', cat:'phone', app:'line', label:'昔の友人に送る', sub:'最後のやりとりは4年前',
+ lines:[['sys','トーク履歴：2022年3月「今度飲もう」'],['sys','2022年3月「いいね」'],['sys','以上。'],
+        ['inner','4年、飲んでいない。'],['me','「久しぶり！ 実は今めちゃくちゃ困ってて」',{}],['sys','送信。'],
+        ['sys','……'],['sys','……'],['sys','既読。',{sfx:'ding'}],['me','来た！！',{}],['inner','来た来た来た！'],
+        ['sys','……'],['sys','返信は、まだない。'],['inner','待とう。'],['inner','待てば来る。']],
+ fx:{}, batt:-2, chat:'old', flag:'lineOld', unlock:['wait'] },
+
+{id:'line_group', cat:'phone', app:'line', label:'グループトークに投稿する', sub:'「◯◯高校の会」42人',
+ lines:[['inner','人数がいれば誰か拾ってくれる。'],['me','「誰か◯◯駅の近くにいる人いませんか」',{}],['sys','送信。'],
+        ['sys','既読 3'],['sys','既読 7'],['sys','既読 11'],['inner','11人が読んだ。'],['sys','……'],
+        ['sys','誰も何も言わない。'],['inner','11人が読んで、11人が黙った。'],['inner','これがコミュニティだ。']],
+ fx:{shame:8}, batt:-3, chat:'group', time:2 },
+
+{id:'line_beg', cat:'phone', app:'line', label:'もう一度、全員に追い打ちをかける', sub:'連投', req:()=>has('lineAny'),
+ lines:[['me','「まじで助けて」',{}],['me','「1480円」',{}],['me','「返す」',{}],['me','「絶対返す」',{}],
+        ['sys','3通連続送信。'],['inner','連投した。'],['inner','人は連投すると、信用を失う。'],['sys','既読はつかない。']],
+ fx:{shame:12, trust:-3}, batt:-3 }
+);
+
+/* ---------- スマホ：電話 ---------- */
+ACTS.push(
+{id:'tel_friendA', cat:'phone', app:'tel', label:'ヤマダに電話をかける', sub:'LINEを見ないなら電話だ',
+ lines:[['inner','LINEを見ないなら、電話すればいい。'],['sys','発信中……',{sfx:'ring'}],['sys','プツ。'],
+        ['voice','おかけになった電話番号は、現在使われておりません。'],['me','え？',{}],
+        ['voice','番号をお確かめのうえ、おかけ直しください。'],['inner','使われておりません？'],
+        ['inner','……そういえば、ここ10年こいつとはLINEでしか話していない。'],
+        ['inner','番号が変わっていたことすら、知らなかった。'],['inner','10年分の空白が、機械の声で埋まった。']],
+ fx:{}, batt:-3, unlock:['tel_friendB','cont_scroll'] },
+
+{id:'tel_friendB', cat:'phone', app:'tel', label:'サトウに電話をかける', sub:'たぶん出る',
+ lines:[['sys','発信中……',{sfx:'ring'}],['sys','プルルル。プルルル。プルルル。'],['inner','出ろ。'],
+        ['sys','プルルル。'],['voice','ただいま電話に出ることができません。ピーという発信音のあとに……'],
+        ['sys','ピー。'],['me','あ、もしもし、あの、財布忘れちゃって、あの、もし聞いたら、',{}],
+        ['sys','留守番電話に、要領を得ない45秒が記録された。'],['inner','あとで聞き返されると思うと、それだけで死にたい。']],
+ fx:{shame:10}, batt:-4, time:2, unlock:['tel_office'] },
+
+{id:'tel_mom', cat:'phone', app:'tel', label:'母に電話をかける', sub:'最終手段のひとつ', req:()=>has('lineAny'),
+ lines:[['sys','発信中……',{sfx:'ring'}],['sys','ガチャ。'],['mom','もしもし？ どうしたの珍しい'],['me','あ、母さん、あのさ',{}],
+        ['mom','今ね、北海道'],['me','え',{}],['mom','旅行。函館。イカ食べてる'],['inner','イカ。'],
+        ['me','あ、そう……楽しんで',{}],['mom','なに？ どうしたの？'],['me','いや、何でもない',{}],
+        ['inner','言えなかった。'],['inner','40近い息子が、1,480円を払えないという事実を、函館に届ける勇気がなかった。']],
+ fx:{shame:6, trust:2}, batt:-4, time:3, unlock:['tel_taxi'] },
+
+{id:'tel_office', cat:'phone', app:'tel', label:'会社に電話する', sub:'誰か近くにいるかも',
+ lines:[['sys','発信中……'],['sys','「はい、株式会社◯◯でございます」'],['me','あ、営業部の者ですが、あの、',{}],
+        ['sys','「はい」'],['me','……いえ、大丈夫です、失礼します',{}],['sys','通話終了。'],
+        ['inner','言えるわけがない。'],['inner','「財布を忘れたので誰か来てください」と会社に言った瞬間、'],
+        ['inner','俺は一生「あの人」になる。']],
+ fx:{shame:8}, batt:-3, time:2 },
+
+{id:'tel_taxi', cat:'phone', app:'tel', label:'タクシーを呼んで家に取りに帰る', sub:'名案に見えた', req:()=>has('lineAny'),
+ lines:[['inner','タクシーで家に帰って、財布を取ってくればいい。'],['inner','往復で……'],['inner','3,000円くらいか。'],
+        ['inner','3,000円を、どうやって払う。'],['inner','1,480円が払えない人間が、3,000円を払う方法を考えている。'],
+        ['sys','この案は、静かに棄却された。']],
+ fx:{}, batt:-2 },
+
+{id:'tel_110', cat:'phone', app:'tel', label:'110番にかけようとする', sub:'一瞬、指が触れた',
+ lines:[['sys','キーパッド：1、1、0。'],['inner','……いや。'],['inner','違う。'],['inner','これは事件じゃない。'],
+        ['sys','番号を消した。'],['inner','1,480円は、事件じゃない。'],['inner','事件じゃないんだよ。']],
+ fx:{fugitive:5}, batt:-1, unlock:['clerk_police'] },
+
+{id:'tel_public', cat:'phone', app:'tel', label:'（店の外）公衆電話を使う', sub:'窓の外に見つけた', req:()=>has('sawPhoneBox'),
+ lines:[['inner','公衆電話だ！'],['inner','あれなら、スマホの電池が切れても……'],['sys','外に出る許可を店員さんにもらい、公衆電話まで歩く。'],
+        ['sys','受話器を取る。'],['sys','ツー。'],['inner','よし。'],['sys','投入口を見る。'],
+        ['inner','10円玉。'],['sys','',{fx:'black'}],['inner','10円玉がない。',{drama:'現金がない',sfx:'fail'}],
+        ['sys','',{fx:'unblack'}],['inner','というか、そもそも誰の番号も覚えていない。'],
+        ['inner','スマホで番号を調べて、公衆電話でかける。'],['inner','その手順を踏める人間は、たぶんスマホで直接かける。'],
+        ['sys','席に戻った。'],['clerk','おかえりなさい',{face:'gentle'}],['inner','逃げてないよ。逃げてない。']],
+ fx:{fugitive:8, conf:4}, batt:-2, time:4 }
+);
+
+/* ---------- スマホ：銀行 ---------- */
+ACTS.push(
+{id:'bank_open', cat:'phone', app:'bank', label:'銀行アプリを開く', sub:'生体認証',
+ lines:[['sys','顔認証。'],['sys','ピッ。'],['sys','ログイン成功。'],['sys','普通預金残高：312,450円'],
+        ['me','ある。',{}],['inner','金はある。'],['inner','ここに、312,450円ある。'],
+        ['inner','それなのに1,480円が払えない。'],['inner','これ、どういう国なんだ。']],
+ fx:{trust:3}, batt:-2, unlock:['bank_transfer','bank_atm','bank_stare','web_atm'] },
+
+{id:'bank_stare', cat:'phone', app:'bank', label:'残高をただ眺める', sub:'312,450円', max:2, keep:true, req:()=>has('bankSeen'),
+ linesBy:[
+  [['sys','312,450円。'],['inner','見ていると落ち着く。'],['inner','見ているだけでは、1円も動かない。']],
+  [['sys','312,450円。'],['inner','この数字は、今この瞬間、何の意味も持っていない。'],['inner','数字は、引き出せて初めて金になる。'],['inner','引き出せない数字は、ただの壁紙だ。']]
+ ],
+ fx:{shame:3}, batt:-1 },
+
+{id:'bank_transfer', cat:'phone', app:'bank', label:'店の口座に振り込む', sub:'これが一番まともな案', req:()=>has('bankSeen'),
+ lines:[['me','あの、お店の口座に今すぐ振り込みます！',{}],['clerk','え、口座ですか……',{face:'confused',emote:'？'}],
+        ['clerk','ちょっと店長に聞いてみないと分からないです……',{face:'worry'}],['sys','店員さんが厨房に消える。'],
+        ['sys','2分後、メモを持って戻ってくる。'],['clerk','これで大丈夫ですかね',{face:'gentle'}],
+        ['inner','いい人すぎる。'],['sys','銀行アプリ：振込先を入力。'],['sys','金額：1,480円'],['sys','「確認」'],
+        ['me','いける',{}],['sys','「ワンタイムパスワードを入力してください」'],['inner','……ワンタイム。'],
+        ['sys','認証アプリを開く。'],['sys','「このデバイスは登録されていません」'],['inner','機種変した時、移行してない。'],
+        ['sys','「再登録にはキャッシュカードの情報が必要です」'],['sys','',{fx:'black'}],
+        ['me','カードは財布の中！！',{drama:'ワンタイムパスワード',sfx:'fail'}],['sys','',{fx:'unblack'}],
+        ['clerk','……大丈夫ですか？',{face:'worry'}],['me','大丈夫です',{}],['inner','全然大丈夫じゃない。']],
+ fx:{conf:10, shame:6, kindness:5}, batt:-6, time:6, unlock:['bank_otp','clerk_mgr'] },
+
+{id:'bank_otp', cat:'phone', app:'bank', label:'ワンタイムパスワードを何とかする', sub:'SMS受信に切り替えられないか', req:()=>has('otpFail'),
+ lines:[['sys','設定 →「認証方式の変更」'],['sys','「認証方式の変更には、現在の認証方式による認証が必要です」'],
+        ['inner','……',{}],['inner','認証を変えるために、認証がいる。'],['inner','鍵のかかった部屋の中に、鍵がある。'],
+        ['sys','コールセンターの番号が表示された。'],['sys','受付時間：平日9:00〜17:00'],['sys','現在：13:34'],
+        ['me','やってる！',{}],['sys','発信。'],['sys','「ただいま大変混み合っております。順番におつなぎしますので……」'],
+        ['sys','推定待ち時間：18分'],['inner','18分。'],['inner','ここで18分待つ。'],['sys','……保留音が流れ続けている。']],
+ fx:{conf:8}, batt:-8, time:6 },
+
+{id:'bank_atm', cat:'phone', app:'bank', label:'スマホATMで下ろせないか調べる', sub:'カードなしで下ろせるやつ', req:()=>has('bankSeen'),
+ lines:[['inner','最近はスマホでATMから下ろせるらしい。'],['sys','アプリ内を探す。'],['sys','「スマホATM」…見当たらない。'],
+        ['sys','ヘルプ：「スマホATMサービスは、対象の銀行アプリでご利用いただけます」'],
+        ['sys','対象銀行一覧を開く。'],['sys','……自分の銀行の名前が、ない。'],
+        ['inner','なんでうちの銀行だけないんだ。'],['inner','一番歴史がある銀行なのに。'],
+        ['inner','歴史があるから、ないのかもしれない。']],
+ fx:{conf:3}, batt:-4, time:3 }
+);
+
+/* ---------- スマホ：PASMO ---------- */
+ACTS.push(
+{id:'pasmo_open', cat:'phone', app:'pasmo', label:'モバイルPASMOの残高を見る', sub:'',
+ lines:[['sys','モバイルPASMO'],['sys','残高：4,832円'],['me','あるじゃん！！',{}],['inner','4,832円！'],
+        ['inner','1,480円どころか、3回払えるぞ！'],['inner','俺は救われた。'],['inner','ありがとうモバイルPASMO。']],
+ fx:{trust:5}, batt:-2, unlock:['clerk_pasmo','pasmo_cash','pasmo_conv'] },
+
+{id:'pasmo_cash', cat:'phone', app:'pasmo', label:'PASMOを現金化できるか調べる', sub:'4,832円は現金ではないのか', req:()=>has('pasmoSeen'),
+ lines:[['sys','検索：「モバイルPASMO 残高 現金化」'],['sys','公式：「チャージ残額の払いもどしは、記名PASMOの退会時のみ」'],
+        ['sys','「払いもどし手数料220円」'],['sys','「駅の窓口で、本人確認書類をご提示のうえ」'],
+        ['inner','本人確認書類。'],['inner','出た。'],['inner','今日、この6文字に何回殺されるんだ。'],
+        ['sys','',{fx:'black'}],['inner','金はある。使えないだけで。',{drama:'残高 4,832円',sfx:'drama'}],
+        ['sys','',{fx:'unblack'}]],
+ fx:{shame:5, conf:2}, batt:-3, time:3 },
+
+{id:'pasmo_conv', cat:'phone', app:'pasmo', label:'PASMOでコンビニに行って何か買う作戦', sub:'おつりが出れば現金になる', req:()=>has('pasmoSeen'),
+ lines:[['inner','待てよ。'],['inner','コンビニでPASMOを使って何か買えば……'],['inner','いや、電子マネーにおつりは出ない。'],
+        ['inner','……じゃあ、コンビニでPASMOで買った商品を、この店の人に売る？'],['inner','おにぎりを1,480円で？'],
+        ['inner','そして何より、'],['inner','今この店から出て行く時点で、俺は「出て行った人」になる。'],
+        ['sys','この案は、席を立つ前に死んだ。']],
+ fx:{fugitive:5}, batt:-2, time:2 }
+);
+
+/* ---------- スマホ：連絡先 ---------- */
+ACTS.push(
+{id:'cont_scroll', cat:'phone', app:'cont', label:'連絡先を上から下まで眺める', sub:'328件',
+ lines:[['sys','連絡先：328件'],['sys','スクロールする。'],['sys','会社の人。取引先。'],['sys','美容院。歯医者。'],
+        ['sys','「田中さん（誰）」'],['sys','「◯◯不動産 佐々木」'],['sys','大学の同級生。'],['sys','前の職場の人。'],
+        ['sys','……'],['inner','328件。'],['inner','この中で、今すぐ「1,480円貸して」と言える人が、'],
+        ['inner','何人いるだろう。'],['sys','……'],['inner','2人。'],['inner','いや、1人かもしれない。'],
+        ['inner','328分の1。'],['sys','スクロールを止めた。']],
+ fx:{shame:6}, batt:-3, time:3, unlock:['cont_ex','cont_search'] },
+
+{id:'cont_search', cat:'phone', app:'cont', label:'「金」で連絡先を検索する', sub:'一縷の望み', req:()=>has('contSeen'),
+ lines:[['sys','検索：「金」'],['sys','ヒット：3件'],['sys','・金子さん（前職）'],['sys','・金城さん（誰）'],
+        ['sys','・「金曜の飲み会」グループ'],['inner','金は、名前の中にしかない。']],
+ fx:{}, batt:-1 },
+
+{id:'cont_ex', cat:'phone', app:'cont', label:'消し忘れていた元恋人の連絡先を見る', sub:'なぜ残っているのか', req:()=>has('contSeen'),
+ lines:[['sys','名前が表示される。'],['inner','……。'],['inner','3年前に別れた人だ。'],['inner','消してなかったのか、俺は。'],
+        ['sys','指が「発信」の上で止まる。'],['inner','この人なら、来てくれるかもしれない。'],
+        ['inner','1,480円を持って、来てくれるかもしれない。'],['sys','……'],['inner','いや。'],
+        ['inner','3年ぶりの連絡が「財布忘れた」は、'],['inner','さすがに、人としてどうかと思う。'],['sys','画面を閉じた。']],
+ fx:{shame:4, trust:2}, batt:-2, time:2 }
+);
+
+/* ---------- スマホ：ブラウザ ---------- */
+ACTS.push(
+{id:'web_search1', cat:'phone', app:'web', label:'「財布 忘れた 飲食店」で検索', sub:'先人の知恵',
+ lines:[['sys','検索結果：'],['sys','1. 財布を忘れた時の対処法【完全ガイド】'],['sys','2. 【体験談】飲食店で財布を忘れた話'],
+        ['sys','3. 無銭飲食は犯罪？ 弁護士が解説'],['inner','3番が怖い。'],['sys','1番を開く。'],
+        ['sys','「まずは落ち着いて、店員さんに正直に伝えましょう」'],['inner','それができれば苦労しない。'],
+        ['sys','「多くの飲食店は後日払いに応じてくれます」'],['inner','ほんとかよ。'],
+        ['sys','「※筆者は飲食店で働いた経験はありません」'],['inner','おい。']],
+ fx:{}, batt:-3, time:2, unlock:['web_chie','web_crime','clerk_explain'] },
+
+{id:'web_chie', cat:'phone', app:'web', label:'知恵袋で同じ状況の人を探す', sub:'仲間を求めて', req:()=>has('webSeen'),
+ lines:[['sys','Q. 飲食店で財布を忘れました。今まさに店内です。どうすればいいですか？（緊急）'],
+        ['sys','投稿日：2013年'],['inner','13年前の俺がいる。'],['sys','ベストアンサー：'],
+        ['sys','「正直に言えば大丈夫ですよ！ 私も昔やりました！」'],['sys','「その後どうなりましたか？」'],
+        ['sys','質問者からの返信：なし'],['inner','どうなったんだよ。'],['inner','2013年の彼は、今どうしているんだ。']],
+ fx:{}, batt:-2, time:2 },
+
+{id:'web_crime', cat:'phone', app:'web', label:'「無銭飲食 罪」で検索してしまう', sub:'見なければよかった', req:()=>has('webSeen'),
+ lines:[['sys','「無銭飲食は詐欺罪（刑法246条）にあたる可能性があります」'],['sys','「10年以下の懲役」'],
+        ['me','10年！？',{}],['sys','「ただし、支払う意思があった場合は成立しません」'],['inner','ある。ありますあります。'],
+        ['sys','「支払う意思の有無は、客観的な行動から判断されます」'],['inner','客観的な行動。'],
+        ['sys','客観的に見た自分：'],['sys','・30分以上席を立たない'],['sys','・スマホを高速で操作し続けている'],
+        ['sys','・何度も外を見る'],['sys','・カバンの中身を全部出した'],['sys','',{fx:'shake'}],
+        ['inner','完全に、その、あれだ。']],
+ fx:{fugitive:15, shame:8}, batt:-3, time:2 },
+
+{id:'web_atm', cat:'phone', app:'web', label:'近くのATMを地図で探す', sub:'', req:()=>has('bankSeen'),
+ lines:[['sys','地図：現在地から徒歩3分にコンビニATM。'],['inner','3分。'],['inner','行って戻れば6分。'],
+        ['inner','いける……'],['inner','……いや、キャッシュカードがない。'],['sys','',{fx:'shake'}],
+        ['inner','ATMは、カードを持っている人のための機械だ。'],['inner','当たり前のことを、今日は何度も学び直している。']],
+ fx:{}, batt:-3, time:2 },
+
+{id:'web_review', cat:'phone', app:'web', label:'この店のレビューを読む', sub:'現実逃避のかたち',
+ lines:[['sys','★4.1（127件）'],['sys','「定食が最高。店員さんが優しい」'],['sys','「アットホームな雰囲気」'],
+        ['sys','「店員のお姉さんが親切」'],['inner','知ってる。'],['inner','今まさに、その親切に生かされている。'],
+        ['sys','★1のレビューが1件だけある。'],['sys','「支払い方法が少ない」'],['inner','……',{}],['inner','お前は俺か。']],
+ fx:{}, batt:-2, time:2, unlock:['web_writereview'] },
+
+{id:'web_writereview', cat:'phone', app:'web', label:'レビューを書くふりをして時間を稼ぐ', sub:'誰も得しない', req:()=>has('reviewSeen'),
+ lines:[['sys','レビュー投稿画面を開く。'],['sys','★★★★★'],['sys','「料理は最高でした。ただ決済手段が」'],
+        ['sys','……'],['inner','俺は今、1,480円を払えないまま、'],['inner','この店の決済手段について意見しようとしている。'],
+        ['inner','世界一おこがましい人間だ。'],['sys','下書きを削除した。']],
+ fx:{shame:10, annoy:10}, batt:-3, time:3 }
+);
+
+/* ---------- スマホ：AI / SNS / フリマ / カメラ / 設定 ---------- */
+ACTS.push(
+{id:'ai_ask1', cat:'phone', app:'ai', label:'AIに相談する', sub:'「飲食店で財布を忘れました」',
+ lines:[['me','飲食店で財布を忘れました。どうすればいいですか？',{}],['ai','まず落ち着いてください。'],
+        ['inner','落ち着いてる場合か。'],['ai','深呼吸をして、状況を整理しましょう。'],['inner','整理はしてる。金がないだけだ。'],
+        ['ai','次に、店員さんに正直に事情を説明することをおすすめします。'],['me','それが嫌だから聞いてるんだよ',{}],
+        ['ai','お気持ちお察しします。しかし、誠実に伝えることが最も確実な解決策です。'],['inner','正論。'],
+        ['inner','正論を、こんな速度で返してくるな。']],
+ fx:{}, batt:-3, time:2, unlock:['ai_ask2','clerk_explain'] },
+
+{id:'ai_ask2', cat:'phone', app:'ai', label:'AIに食い下がる', sub:'「店員に言わずに解決する方法は？」', req:()=>has('aiSeen'),
+ lines:[['me','店員さんに言わずに解決する方法を教えてください',{}],['ai','申し訳ありませんが、店員さんに伝えずに代金を支払わない方法をご案内することはできません。'],
+        ['inner','違う、そうじゃない。'],['me','支払う気はあります。言いたくないだけです',{}],
+        ['ai','その場合も、まず店員さんにご相談いただくのが最善です。'],['ai','多くの飲食店では、後日のお支払いに対応しています。'],
+        ['me','じゃあ何のためにお前がいるんだよ',{}],['ai','お力になれず申し訳ありません。'],['ai','何か他にお手伝いできることはありますか？'],
+        ['inner','ない。'],['inner','……いや、ある。金だ。']],
+ fx:{shame:4}, batt:-3, time:2, unlock:['ai_ask3'] },
+
+{id:'ai_ask3', cat:'phone', app:'ai', label:'AIに「1480円ください」と頼む', sub:'ダメ元', req:()=>has('aiSeen2'),
+ lines:[['me','1480円ください',{}],['ai','申し訳ありませんが、私は金銭を送金する機能を持っていません。'],
+        ['me','知ってるよ',{}],['ai','ですが、応援しています。'],['inner','応援。'],['inner','無料でできることを、ちゃんとやってきたな。'],
+        ['me','ありがとう',{}],['ai','どういたしまして。うまくいくことを願っています。'],['inner','……なんか、今日いちばん優しかった。']],
+ fx:{trust:2, shame:3}, batt:-2 },
+
+{id:'sns_post', cat:'phone', app:'sns', label:'SNSに助けを求めて投稿する', sub:'フォロワー412人',
+ lines:[['me','「至急」「◯◯駅近くにいる方いませんか」「1480円貸してください」',{}],['sys','投稿。'],
+        ['sys','……'],['sys','5分後。'],['sys','いいね：1'],['inner','1。'],['sys','リプライ：1件'],
+        ['sys','「www」'],['inner','www。'],['inner','俺は今、コンテンツになった。']],
+ fx:{shame:15, attention:10}, batt:-3, time:5, unlock:['sns_check'] },
+
+{id:'sns_check', cat:'phone', app:'sns', label:'投稿の反応をもう一度見る', sub:'', req:()=>has('snsPosted'), max:2, keep:true,
+ linesBy:[
+  [['sys','いいね：4'],['sys','リプライ：「がんばれ」'],['inner','がんばれ。'],['inner','がんばってるんだよ。']],
+  [['sys','いいね：11'],['sys','引用：「これ本当だったら面白すぎる」'],['inner','本当なんだよ。'],['inner','本当だから面白くないんだよ。']]
+ ],
+ fx:{shame:5}, batt:-2 },
+
+{id:'flea_open', cat:'phone', app:'flea', label:'イヤホンをフリマに出品する', sub:'定価18,000円',
+ lines:[['inner','イヤホンを売ればいい。'],['sys','写真を撮る。テーブルの上で。'],['sys','商品名：「ワイヤレスイヤホン 美品」'],
+        ['sys','価格：8,000円'],['sys','出品完了。'],['me','よし！',{}],['inner','これで金が……'],
+        ['sys','「売上金の振込には、口座登録と本人確認が必要です」'],['inner','……',{}],
+        ['sys','「振込申請から入金まで、2〜4営業日」'],['inner','2〜4営業日。'],
+        ['inner','俺の会計は、あと2〜4営業日待ってくれるだろうか。'],['clerk','……',{face:'gentle'}],['inner','待ってくれそうな顔をしている。'],['inner','それはそれで、つらい。']],
+ fx:{conf:4}, batt:-5, time:5, unlock:['flea_sell2'] },
+
+{id:'flea_sell2', cat:'phone', app:'flea', label:'店員さんにイヤホンを買い取ってもらう', sub:'直接取引', req:()=>has('fleaPosted'),
+ lines:[['me','あの、このイヤホン、1,480円で買いませんか',{}],['clerk','えっ',{face:'confused',emote:'！？'}],
+        ['clerk','えっと、あの、私が、ですか？',{face:'confused'}],['me','はい',{}],
+        ['clerk','……ごめんなさい、私もそういうのは……',{face:'worry'}],['inner','そうだよな。'],
+        ['inner','定食屋で、客がイヤホンを売りつけてきたら、それはもう事案だ。']],
+ fx:{conf:12, shame:14, annoy:12, trust:-6}, batt:-1, time:2 },
+
+{id:'cam_wallet', cat:'phone', app:'camera', label:'写真フォルダで財布を探す', sub:'意味はない',
+ lines:[['sys','写真アプリを開く。'],['sys','検索：「財布」'],['sys','ヒット：2件'],
+        ['sys','1. 3年前、新しい財布を買った日の写真。'],['sys','2. 去年、財布の中身を整理した時の写真。'],
+        ['sys','……'],['inner','写真の中の財布は、パンパンだ。'],['inner','現金も入っている。'],
+        ['inner','これを店員さんに見せて、'],['inner','「財布はあります」と言ったら、どうなるだろう。'],
+        ['inner','たぶん、事態は悪化する。']],
+ fx:{shame:5}, batt:-2, time:2 },
+
+{id:'set_power', cat:'phone', app:'set', label:'低電力モードを確認する', sub:'',
+ lines:[['sys','設定 → バッテリー'],['sys','残量：'+'--'],['sys','「このペースだと、あと約40分でバッテリーがなくなります」'],
+        ['inner','40分。'],['inner','40分以内に、この状況を解決しなければ、'],['inner','俺は、江戸時代の人間になる。'],
+        ['sys','低電力モードをON。'],['sys','画面が少し暗くなった。'],['inner','世界も少し暗くなった。']],
+ fx:{}, batt:-1, flag:'powerSave' },
+
+{id:'set_wallet', cat:'phone', app:'set', label:'ウォレット（タッチ決済）を確認する', sub:'かざすだけのやつ',
+ lines:[['sys','ウォレット'],['sys','登録済みカード：なし'],['inner','なし。'],
+        ['inner','「便利そうだけど、後でやろう」と思って3年経った。'],
+        ['inner','3年前の10分が、今日の1,480円だった。'],['sys','',{fx:'shake'}]],
+ fx:{shame:6}, batt:-2 }
+);
+
+/* data-actions-people.js — まわり（隣の客）と店員との会話 */
+/* ---------- まわりを見る ---------- */
+ACTS.push(
+{id:'look_around', cat:'around', label:'店内を見回す', sub:'状況を確認する',
+ lines:[['sys','昼下がりの定食屋。'],['sys','カウンターに5席、テーブルが4つ。'],['sys','隣のテーブルに、スーツの男性がひとり。'],
+        ['sys','奥から厨房の音。'],['sys','有線放送で、聞いたことのあるJ-POP。'],['sys','店員さんは、伝票を持って立っている。'],
+        ['inner','世界は、平常運転だ。'],['inner','俺の脳内だけが、サスペンス映画になっている。']],
+ fx:{}, unlock:['nb_talk','look_window','look_clerk'] },
+
+{id:'look_window', cat:'around', label:'窓の外を見る', sub:'',
+ lines:[['sys','通りを人が歩いていく。'],['sys','向かいのコンビニ。'],['sys','その手前に……'],
+        ['sys','公衆電話ボックス。'],['me','あれだ！',{}],['inner','公衆電話！'],['inner','あれなら何とかなる！'],
+        ['inner','……何がどう何とかなるのかは、まだ考えていない。']],
+ fx:{trust:2}, unlock:['tel_public'] },
+
+{id:'look_clerk', cat:'around', label:'店員さんを観察する', sub:'敵ではない',
+ lines:[['sys','20代後半くらい。'],['sys','エプロン。名札には「小島」。'],['sys','困っている様子はない。'],
+        ['sys','というより、まだ何も起きていないと思っている。'],['inner','そうだ。'],
+        ['inner','この人はまだ、何も知らない。'],['inner','俺が黙っている限り、この店は平和だ。'],
+        ['inner','……黙っていても会計は終わらないのだが。']],
+ fx:{kindness:5} },
+
+{id:'nb_talk', cat:'around', label:'隣の客に声をかける', sub:'最終手段に近い', risky:'見知らぬ人に1,480円を借りようとします。\n引き返せますが、羞恥心はもう戻りません。',
+ lines:[['me','あの、すみません……',{}],['nb','はい？',{nbEmote:'？'}],['me','大変ぶしつけなお願いなんですが',{}],
+        ['nb','はい'],['me','1,480円、貸していただけませんか',{}],['sys','……'],['sys','店内のBGMが、やけに大きく聞こえる。'],
+        ['nb','……えっと'],['nb','どういう状況ですか？'],['me','財布を忘れてしまって',{}],['nb','ああ'],
+        ['nb','なるほど'],['sys','明らかに、警戒している。'],['nb','失礼ですけど、身分証とかあります？',{nbEmote:'…'}]],
+ fx:{shame:30, attention:30, trust:-5}, time:2, unlock:['nb_meishi','nb_line','nb_bank','nb_addr','nb_collateral','nb_giveup','nb2_talk'] },
+
+{id:'nb_meishi', cat:'around', label:'（隣客に）名刺を出す', sub:'身元を示せる唯一のもの', req:()=>has('nbTalked'),
+ lines:[['me','あ、名刺なら',{}],['sys','名刺を差し出す。'],['nb','……株式会社◯◯'],['nb','これ、ご自分で作れますよね'],
+        ['me','作ってません！',{}],['nb','いや、そうじゃなくて'],['nb','名刺は誰でも作れるので、証明にはならないというか'],
+        ['inner','正しい。'],['inner','完全に正しい。'],['inner','正しさが、俺を刺してくる。']],
+ fx:{trust:-4, shame:8}, unlock:['nb_line'] },
+
+{id:'nb_line', cat:'around', label:'（隣客に）LINE交換を提案する', sub:'つながっていれば逃げられない', req:()=>has('nbTalked'),
+ lines:[['me','じゃあ、LINE交換しましょう！ それなら逃げられないので！',{}],['nb','……',{nbEmote:'…'}],
+        ['nb','その、「逃げられないので」って自分から言うの、'],['nb','逆に不安になりません？'],
+        ['me','あっ',{}],['inner','言われてみればそうだ。'],['inner','正直者は、正直すぎると詐欺師に見える。']],
+ fx:{trust:-6, shame:10, fugitive:10} },
+
+{id:'nb_bank', cat:'around', label:'（隣客に）今すぐ振り込むと約束する', sub:'銀行アプリを見せる', req:()=>has('nbTalked'),
+ lines:[['me','見てください、残高。312,450円あります',{}],['sys','スマホの画面を隣の席に向ける。'],
+        ['nb','……ほんとだ'],['me','ありますよね！？',{}],['nb','ありますね'],['nb','なんでそんなに困ってるんですか'],
+        ['me','振り込めないんです',{}],['nb','……'],['sys','沈黙。'],
+        ['inner','「金はあるのに払えない男」は、「金がない男」より不気味だ。'],['inner','今日、それを学んだ。']],
+ fx:{trust:-3, shame:12} },
+
+{id:'nb_addr', cat:'around', label:'（隣客に）自宅の住所を教える', sub:'ここまで来た', req:()=>has('nbTalked'),
+ lines:[['me','住所言います！ ◯◯区◯◯町3-12-',{}],['nb','いや、いいです'],['nb','聞きたくないです'],
+        ['me','え',{}],['nb','初対面の人の住所を知ると、こっちが困るので'],['inner','断られた。'],
+        ['inner','個人情報を差し出して、断られた。'],['inner','こんな断られ方があるのか。']],
+ fx:{trust:-5, shame:15, annoy:10} },
+
+{id:'nb_collateral', cat:'around', label:'（隣客に）スマホを担保に出す', sub:'これ以上ない誠意', req:()=>has('nbTalked'),
+ lines:[['me','これ、預けます。スマホ',{}],['sys','テーブルの上にスマホを置く。'],['nb','いやいやいや',{nbEmote:'！？'}],
+        ['nb','受け取れないですよ'],['nb','もし何かあったら、僕が疑われるでしょ'],['inner','その通りだ。'],
+        ['inner','善意で受け取った人が、一番損をする構造になっている。'],['sys','スマホを引っ込めた。']],
+ fx:{trust:-4, shame:12, annoy:8} },
+
+{id:'nb2_talk', cat:'around', label:'反対側の学生風の客にも声をかける', sub:'二人目', req:()=>has('nbTalked'),
+ lines:[['sys','入口近くの席に、学生風の男性。'],['me','あの、すみません',{}],['nb2','はい？'],
+        ['me','1,480円、貸していただけませんか',{}],['nb2','あー'],['nb2','俺も現金ないっす'],
+        ['me','え',{}],['nb2','ここ、現金しか使えないの知らなくて'],['nb2','さっき友達に立て替えてもらいました'],
+        ['inner','……'],['inner','同志だ。'],['inner','この店で、俺たちは同じ穴に落ちている。'],
+        ['nb2','大変っすね'],['me','大変です',{}]],
+ fx:{shame:10, attention:10, trust:2}, time:2 },
+
+{id:'nb_giveup', cat:'around', label:'（隣客に）謝って引き下がる', sub:'撤退も勇気', req:()=>has('nbTalked'),
+ lines:[['me','すみませんでした。変なこと言って',{}],['nb','いえ'],['nb','……あの'],['me','はい',{}],
+        ['nb','店員さんに言ったほうが早いと思いますよ'],['me','……そうですよね',{}],
+        ['nb','たぶん、そんなに怒られないです'],['inner','この人、いい人だ。'],
+        ['inner','金は貸してくれないけど、いい人だ。'],['inner','世の中は、だいたいそういう人でできている。']],
+ fx:{shame:-5, trust:5, attention:-10}, unlock:['clerk_explain'] }
+);
+
+/* ---------- 店員と話す ---------- */
+ACTS.push(
+{id:'clerk_askpay', cat:'clerk', label:'使える支払い方法を聞く', sub:'まずは情報収集',
+ lines:[['me','あの、こちら、何が使えますか？',{}],['clerk','はい、現金と、',{face:'gentle'}],
+        ['clerk','あとは、ニコニコPayでしたらお使いいただけます',{face:'gentle'}],['me','ニコニコPay',{}],
+        ['clerk','はい！',{face:'smile'}],['inner','ニコニコPay。'],['inner','聞いたことはある。'],
+        ['inner','入れてない。'],['inner','世の中の決済アプリを7個入れている俺が、'],['inner','唯一入れていないやつだけが使える。'],
+        ['sys','',{fx:'shake'}],['inner','これは、俺のために用意された罠なのか。']],
+ fx:{}, unlock:['qr_install','clerk_explain'] },
+
+{id:'clerk_pasmo', cat:'clerk', label:'交通系ICが使えるか聞く', sub:'PASMOに4,832円ある', req:()=>has('pasmoSeen'),
+ lines:[['me','あの、PASMOって使えますか',{}],['clerk','あー、すみません',{face:'worry'}],
+        ['clerk','交通系ICは、対応してなくて……',{face:'worry'}],['me','……',{}],
+        ['sys','',{fx:'black'}],['inner','4,832円。',{drama:'交通系IC 非対応',sfx:'drama'}],
+        ['sys','',{fx:'unblack'}],['inner','電車には乗れる。'],['inner','定食は食えない。'],
+        ['inner','いや、食ったんだ。食ったあとの話をしている。']],
+ fx:{conf:5}, unlock:['clerk_explain'] },
+
+{id:'clerk_explain', cat:'clerk', label:'正直に事情を説明する', sub:'一番まともな行動',
+ lines:[['me','あの……すみません',{}],['clerk','はい',{face:'gentle'}],['me','財布を、忘れてしまって',{}],
+        ['sys','言った。'],['sys','言ってしまった。'],['clerk','あー！',{face:'smile'}],
+        ['clerk','大丈夫ですよ、何か方法考えましょう',{face:'smile',emote:'😊'}],['me','……え',{}],
+        ['clerk','たまにいらっしゃいますよ、そういうの',{face:'smile'}],['inner','たまにいる。'],
+        ['inner','俺は、たまにいる人だった。'],['inner','30分かけて到達した結論が、'],['inner','最初に言えば10秒で終わっていた。'],
+        ['clerk','何か、他のお支払い方法とか使えそうですか？',{face:'gentle'}],
+        ['inner','……この人が優しいほど、俺は自分が恥ずかしい。']],
+ fx:{conf:-10, kindness:15, trust:10, shame:10}, unlock:['clerk_later','clerk_mgr','clerk_dish','clerk_key','clerk_conveni'] },
+
+{id:'clerk_later', cat:'clerk', label:'「後日払いに来ます」と言う', sub:'',
+ lines:[['me','あの、後日、必ず払いに来ます',{}],['clerk','はい、大丈夫ですよ',{face:'gentle'}],
+        ['clerk','……あ、でも私、決められないので',{face:'worry'}],['clerk','店長に確認しますね',{face:'gentle'}],
+        ['inner','店長。'],['inner','ラスボスがいる。'],['inner','いや、ラスボスじゃない。ただの店長だ。'],
+        ['inner','なんで俺は、飲食店の店長をラスボス扱いしているんだ。']],
+ fx:{conf:3, trust:5}, unlock:['clerk_mgr'] },
+
+{id:'clerk_meishi', cat:'clerk', label:'名刺を置いていくと申し出る', sub:'8枚ある',
+ lines:[['me','名刺、置いていきます！',{}],['sys','名刺を差し出す。'],['clerk','あ、はい',{face:'confused'}],
+        ['clerk','……これ、どうすれば',{face:'confused',emote:'？'}],['me','担保です',{}],
+        ['clerk','担保',{face:'confused'}],['inner','紙一枚を担保と呼んだ。'],
+        ['inner','この紙には、俺の名前と会社名と、'],['inner','たぶん使われていない内線番号が書いてある。']],
+ fx:{conf:8, trust:2, shame:8} },
+
+{id:'clerk_key', cat:'clerk', label:'家の鍵を置いていくと言う', sub:'一番大事なものなら信用される', risky:'家の鍵を他人に預けようとしています。',
+ lines:[['me','家の鍵、置いていきます！',{}],['sys','テーブルに鍵を置く。'],['clerk','えっ',{face:'confused',emote:'！？'}],
+        ['clerk','いや、それは、',{face:'worry'}],['clerk','困ります',{face:'worry'}],['me','なんでですか！ 一番大事なものですよ！',{}],
+        ['clerk','大事すぎるからです',{face:'worry'}],['inner','正論。'],['sys','鍵をしまう。'],
+        ['inner','そして、財布を取りに帰るには、この鍵がいる。'],['inner','鍵を置いていったら、俺は家に入れない。'],
+        ['inner','担保として差し出したものが、'],['inner','解決の唯一の道具だった。']],
+ fx:{conf:14, annoy:8, shame:10} },
+
+{id:'clerk_dishwash', cat:'clerk', label:'「皿洗いします」と申し出る', sub:'労働で返す', risky:'皿洗いを申し出ます。\nここで話が終わってしまうかもしれません。', end:'bad_dish',
+ lines:[['me','皿洗いします！',{}],['sys','立ち上がる。'],['clerk','えっ',{face:'confused',emote:'！？'}],
+        ['sys','厨房から店長が顔を出す。'],['mgr','どうしました'],['me','皿洗いで払わせてください！',{}],
+        ['sys','店長が、俺を上から下まで見る。'],['mgr','……いや'],['mgr','そういうのは、いいんで'],
+        ['me','いえ、本当に、やります！',{}],['mgr','衛生講習とか受けてないですよね'],['me','……受けてないです',{}],
+        ['mgr','ですよね'],['sys','店長が厨房に戻る。'],['sys','店員さんが、気まずそうに立っている。'],
+        ['sys','厨房から、皿を洗う音がする。'],['sys','店長が洗っている。'],['inner','俺の代わりに、店長が洗っている。'],
+        ['sys','',{fx:'black'}]],
+ fx:{conf:20, shame:25, annoy:20} },
+
+{id:'clerk_work', cat:'clerk', label:'「ここで働かせてください」と言う', sub:'皿洗いの上位互換（？）',
+ lines:[['me','あの、いっそ、ここで働かせてもらえませんか',{}],['clerk','……はい？',{face:'confused',emote:'？？'}],
+        ['me','時給1,100円として、1時間半で',{}],['clerk','あの、うち、今は募集してなくて',{face:'worry'}],
+        ['me','無給でいいです',{}],['clerk','それはもっとだめです',{face:'worry'}],
+        ['inner','労働基準法に守られてしまった。'],['inner','俺を守るために、俺の返済方法が潰された。']],
+ fx:{conf:16, annoy:14, shame:12} },
+
+{id:'clerk_discount', cat:'clerk', label:'「まけてもらえませんか」と聞く', sub:'方向性が違う',
+ lines:[['me','あの、1,480円って、まけてもらったり',{}],['clerk','……',{face:'blank'}],
+        ['sys','はじめて、店員さんの表情が消えた。'],['clerk','それは、ちょっと',{face:'blank'}],
+        ['me','ですよね',{}],['inner','違う。'],['inner','俺が言いたかったのはそれじゃない。'],
+        ['inner','金額の問題じゃなくて、手段の問題なんだ。'],['inner','でも、口から出たのは値切りだった。'],
+        ['inner','いま俺は、この店で一番失礼な客になった。']],
+ fx:{conf:10, trust:-15, annoy:20, kindness:-10, shame:15} },
+
+{id:'clerk_apolo', cat:'clerk', label:'ひたすら謝る', sub:'', max:2, keep:true,
+ linesBy:[
+  [['me','本当にすみません',{}],['clerk','いえいえ',{face:'gentle'}],['me','本当にすみません',{}],['clerk','大丈夫ですよ',{face:'smile'}],
+   ['me','本当にすみません',{}],['clerk','……はい',{face:'gentle'}],['inner','謝罪は、3回目から効果が薄れる。']],
+  [['me','すみません……',{}],['clerk','あの、そんなに謝らなくても',{face:'worry'}],
+   ['clerk','こっちが悪いことした気分になっちゃうので',{face:'worry'}],['inner','優しさで殴られている。']]
+ ],
+ fx:{conf:5, kindness:3, shame:5} },
+
+{id:'clerk_conveni', cat:'clerk', label:'「コンビニで下ろしてきます」と言う', sub:'カードはないのに',
+ lines:[['me','あの、そこのコンビニで下ろしてきます！',{}],['clerk','あ、はい',{face:'gentle'}],['sys','立ち上がる。'],
+        ['inner','……いや。'],['inner','キャッシュカードがない。'],['inner','下ろせない。'],
+        ['inner','今、俺は「下ろしてきます」と言って店を出ようとした。'],['inner','下ろせないと知りながら。'],
+        ['sys','座り直す。'],['clerk','……？',{face:'confused',emote:'？'}],['me','やっぱり大丈夫です',{}],
+        ['clerk','はい……',{face:'confused'}],['inner','一番やってはいけない動きをした。']],
+ fx:{trust:-5, fugitive:20, conf:8} },
+
+{id:'clerk_police', cat:'clerk', label:'「警察を呼んでもらっていいです」と言う', sub:'潔白の証明のつもり', risky:'警察を呼んでもらうよう頼みます。\n話が大きくなります。', end:'bad_police',
+ lines:[['me','いっそ、警察呼んでもらっていいです',{}],['clerk','えっ',{face:'confused',emote:'！？'}],
+        ['me','俺は逃げません。それを証明したいんです',{}],['clerk','いや、そんな大ごとじゃ',{face:'worry'}],
+        ['me','大ごとです！ 俺の中では！',{}],['sys','店内が、静かになる。'],['sys','隣の客が、こちらを見ている。'],
+        ['sys','厨房から店長が出てくる。'],['mgr','どうしました'],['clerk','あの、お客様が、警察を……',{face:'worry'}],
+        ['mgr','……',{}],['mgr','お客さん'],['me','はい',{}],['mgr','落ち着いてください'],
+        ['sys','',{fx:'black'}]],
+ fx:{fugitive:30, conf:30, annoy:25} },
+
+{id:'clerk_gohome', cat:'clerk', label:'「家に財布を取りに行ってきます」と言う', sub:'言えば言うほど怪しい', risky:'席を立って店を出ようとします。\n戻ってこられる保証は、あなたの言葉だけです。', end:'bad_run',
+ lines:[['me','あの、家に財布取りに行ってきます',{}],['clerk','あ、はい',{face:'gentle'}],['me','30分で戻ります',{}],
+        ['clerk','はい',{face:'gentle'}],['me','本当に戻ります',{}],['clerk','はい',{face:'gentle'}],
+        ['me','絶対戻ります',{}],['clerk','……はい',{face:'confused'}],['inner','言えば言うほど、'],['inner','逃げる人にしか見えない。'],
+        ['sys','厨房から店長が出てくる。'],['mgr','あ、すみません'],['mgr','念のため、お名前とご連絡先だけ、'],
+        ['me','いや、本当に戻ってきますから！',{}],['mgr','……はい'],['sys','店長がメモ帳を差し出す。'],
+        ['sys','俺は名前を書いている。'],['sys','手が、少し震えている。'],['sys','',{fx:'black'}]],
+ fx:{fugitive:40, trust:-20, conf:15} },
+
+{id:'clerk_phone', cat:'clerk', label:'「スマホを置いていきます」と言う', sub:'最大の担保', risky:'スマホを担保にして店を出ます。\n……スマホを置いて、どうやって帰りますか？', end:'bad_phone',
+ lines:[['me','スマホ置いていきます！ これで信用してください！',{}],['sys','テーブルにスマホを置く。'],
+        ['clerk','えっ、いや、そんな',{face:'confused',emote:'！？'}],['me','大丈夫です、これが一番確実なので',{}],
+        ['sys','店員さんが困った顔で店長を見る。'],['mgr','……まあ、そこまで言うなら'],['sys','店を出る。'],
+        ['sys','外は明るい。'],['sys','空気がうまい。'],['me','よし、財布取ってこよう',{}],['sys','駅に向かって歩く。'],
+        ['sys','改札。'],['sys','……'],['sys','',{fx:'black'}]],
+ fx:{conf:15, trust:5} },
+
+{id:'clerk_mgr', cat:'clerk', label:'店長さんと話させてもらう', sub:'決定権のある人に', req:()=>has('kindnessKnown'),
+ lines:[['me','あの、店長さんとお話しさせてもらえますか',{}],['clerk','はい、呼んできますね',{face:'gentle'}],
+        ['sys','厨房から、エプロン姿の店長が出てくる。'],['sys','40代くらい。にこりともしないが、怖くもない。'],
+        ['mgr','どうしました'],['me','財布を忘れまして',{}],['mgr','ああ'],['sys','店長が、伝票をちらっと見る。'],
+        ['mgr','1,480円ね'],['me','はい',{}],['mgr','……'],['sys','店長が、カウンターの下から紙を1枚出す。'],
+        ['mgr','これ、お名前と連絡先だけ書いてもらえます？'],['me','はい！',{}],
+        ['mgr','次いらした時でいいですよ'],['me','……え',{}],['mgr','うち、けっこうありますから'],
+        ['inner','けっこう、ある。'],['inner','俺は、けっこうある側の人間だった。']],
+ fx:{conf:-15, kindness:20, trust:15}, unlock:['mgr_accept'] },
+
+{id:'mgr_accept', cat:'clerk', label:'紙に名前と連絡先を書く', sub:'これで、終わる', req:()=>has('mgrMet'), end:'normal_later',
+ lines:[['sys','ボールペンを受け取る。'],['sys','名前。住所。電話番号。'],['sys','書き終えて、店長に渡す。'],
+        ['mgr','はい、確かに'],['mgr','お気をつけて'],['me','……ありがとうございます',{}],['sys','立ち上がる。'],
+        ['sys','店を出る。'],['sys','',{fx:'black'}]],
+ fx:{} },
+
+{id:'clerk_thanks', cat:'clerk', label:'店員さんの優しさに感謝する', sub:'', req:()=>has('kindnessKnown'),
+ lines:[['me','あの、ありがとうございます。怒らないでいてくれて',{}],['clerk','いえ、そんな',{face:'smile'}],
+        ['clerk','困ってる人に怒っても、何も解決しないので',{face:'smile'}],['inner','……',{}],
+        ['inner','この人、俺より30分ぶん人生が上手い。'],['inner','いや、たぶん30年ぶんだ。']],
+ fx:{kindness:10, trust:5, conf:-5} }
+);
+
+/* data-story.js — フラグ・トーク履歴・イベント・エンディング */
+/* ---------- 行動→フラグ ---------- */
+const AUTOFLAG={
+  bank_open:'bankSeen', bank_transfer:'otpFail', pasmo_open:'pasmoSeen',
+  cont_scroll:'contSeen', web_search1:'webSeen', web_review:'reviewSeen',
+  ai_ask1:'aiSeen', ai_ask2:'aiSeen2', sns_post:'snsPosted', flea_open:'fleaPosted',
+  clerk_askpay:'knowPay', look_window:'sawPhoneBox', nb_talk:'nbTalked',
+  clerk_explain:'kindnessKnown', clerk_mgr:'mgrMet',
+  line_family:'lineAny', line_friend:'lineAny', line_col:'lineAny', line_old:'lineOld', line_group:'lineAny'
+};
+
+/* ---------- チャットログ（ライソ画面用） ---------- */
+const CHATS={
+  family:{name:'母', log:[['me','財布忘れた'],['me','店まで来られる？']], read:''},
+  friend:{name:'ヤマダ', log:[['me','やばい 財布忘れた'],['me','◯◯の定食屋にいる']], read:''},
+  col:{name:'同僚 佐々木', log:[['me','すみません、財布忘れて詰んでます']], read:'既読'},
+  old:{name:'旧友 タカハシ', log:[['me','久しぶり！ 実は今めちゃくちゃ困ってて']], read:'既読'},
+  group:{name:'◯◯高校の会（42）', log:[['me','誰か◯◯駅の近くにいる人いませんか']], read:'既読 11'}
+};
+
+/* =========================================================
+   イベント（時間・条件で自動発火）
+   ========================================================= */
+const EVENTS=[
+{id:'ev_queue', when:()=>S.min>=12,
+ lines:[['sys','入口のドアが開く。'],['sys','客が2人、入ってくる。'],['sys','レジの前に、人が並びはじめた。'],
+        ['clerk','少々お待ちください',{face:'worry'}],['inner','列だ。'],['inner','俺のうしろに、列ができている。'],
+        ['inner','俺は今、この店の詰まりの原因だ。']],
+ fx:{attention:10, conf:5}},
+
+{id:'ev_shift', when:()=>S.min>=30,
+ lines:[['sys','厨房から、男性の店員が出てくる。'],['clerk2','小島さん、休憩入っていいよ'],
+        ['clerk','あ、はい……',{face:'worry'}],['sys','店員さんが、こちらをちらっと見る。'],
+        ['clerk','……あの、まだ大丈夫ですか？',{face:'gentle'}],['me','大丈夫です',{}],
+        ['sys','店員さんは、休憩に行かなかった。'],['inner','俺のせいで、休憩が消えた。'],
+        ['inner','1,480円で、人の休憩を奪っている。']],
+ fx:{conf:8, kindness:5, shame:10}},
+
+{id:'ev_lowbatt', when:()=>S.batt<=12,
+ lines:[['sys','ピロン。',{sfx:'buzz'}],['sys','「バッテリー残量が少なくなっています」'],['sys','「低電力モードに切り替えますか？」'],
+        ['inner','待て待て待て。'],['inner','スマホが死んだら、'],['inner','俺の解決手段は、ゼロになる。'],
+        ['sys','',{fx:'black'}],['inner','現代人の生命線は、パーセントで表示される。',{drama:'残り 12%',sfx:'drama'}],
+        ['sys','',{fx:'unblack'}]],
+ fx:{shame:5}},
+
+{id:'ev_deadbatt', when:()=>S.batt<=0,
+ lines:[['sys','画面が、すっと暗くなった。'],['sys','',{fx:'shake'}],['inner','……',{}],['sys','電源ボタンを押す。'],
+        ['sys','バッテリー残量ゼロのマーク。'],['inner','終わった。'],['inner','決済も、連絡も、検索も、全部いま死んだ。'],
+        ['inner','手元に残ったのは、'],['inner','ハンカチ、イヤホン、家の鍵、名刺8枚、ガム。'],
+        ['inner','そして俺の口。'],['inner','……口はある。'],['inner','口だけは、充電がいらない。']],
+ fx:{conf:5}, unlock:['clerk_explain']},
+
+{id:'ev_attention', when:()=>S.attention>=50,
+ lines:[['sys','店内の視線を感じる。'],['sys','隣の客。列に並ぶ客。厨房の中。'],['sys','誰も何も言わない。'],
+        ['sys','ただ、みんな知っている。'],['inner','あの席の人、なんかある。'],['inner','そう思われている。'],
+        ['inner','1,480円で、こんなに有名になれるとは思わなかった。']],
+ fx:{shame:10}},
+
+{id:'ev_fugitive', when:()=>S.fugitive>=45,
+ lines:[['sys','',{fx:'black'}],['sys','店長が、厨房からこちらを見ている。',{drama:'逃亡犯感 MAX',sfx:'drama'}],
+        ['sys','',{fx:'unblack'}],['inner','見られている。'],['inner','俺は逃げない。'],['inner','逃げないのに、'],
+        ['inner','逃げない人の動きを、俺は一つもしていない。']],
+ fx:{trust:-5}},
+
+{id:'ev_line_reply', when:()=>has('lineOld') && S.waitCount>=2,
+ lines:[['sys','ピロン。',{sfx:'ding'}],['sys','通知：タカハシ'],['me','！',{}],['sys','LINEを開く。'],
+        ['friend','今見た'],['friend','どしたの'],['me','来た！！！',{}],['inner','4年ぶりの友人が、'],
+        ['inner','今、俺の人生に戻ってきた。'],['sys','返信を打つ。'],['me','財布忘れて定食屋で詰んでる',{}],
+        ['friend','わろた'],['friend','どこ？'],['me','◯◯駅の◯◯食堂',{}],['friend','近い'],['friend','5分で行く'],
+        ['sys','','',{}]],
+ fx:{trust:20, conf:-10}, unlock:['wait_friend']},
+
+{id:'ev_shame_max', when:()=>S.shame>=100,
+ lines:[['sys','',{fx:'black'}],['inner','もう、どうにでもなれ。',{drama:'羞恥心 限界突破',sfx:'drama'}],
+        ['sys','',{fx:'unblack'}],['inner','不思議なもので、'],['inner','恥ずかしさが振り切れると、'],
+        ['inner','ちょっと楽になる。'],['inner','これが悟りか。'],['inner','1,480円で悟った。']],
+ fx:{shame:-20, trust:5}}
+];
+
+/* ---------- エンディング直行アクション（イベント経由） ---------- */
+ACTS.push(
+{id:'wait_friend', cat:'misc', label:'友人を待つ', sub:'5分で来ると言った', req:()=>has('friendComing'), end:'good_friend',
+ lines:[['sys','5分。'],['sys','店の外に、走ってくる人影。'],['sys','ドアが開く。'],['friend','おーい'],
+        ['sys','4年ぶりの友人が、息を切らして立っている。'],['friend','ほんとに詰んでたんだ'],['me','詰んでた',{}],
+        ['sys','友人がレジに向かう。'],['friend','これで'],['clerk','ありがとうございます！',{face:'smile',emote:'😊'}],
+        ['sys','ピッ。'],['sys','会計が、3秒で終わった。'],['sys','30分かけて解けなかった問題が、3秒で解けた。'],
+        ['me','……一生忘れない',{}],['friend','1,480円で重いわ'],['sys','店を出る。'],['sys','外は明るい。'],
+        ['friend','てかお前、電話番号変わってんの知らんかったろ'],['me','知らんかった',{}],['friend','だよな'],
+        ['sys','',{fx:'black'}]],
+ fx:{}}
+);
+
+/* =========================================================
+   エンディング
+   ========================================================= */
+const ENDINGS={
+ good_friend:{tag:'GOOD END', name:'友よ', kind:'good',
+  desc:'4年ぶりに連絡した友人が、5分で来てくれた。\n\n電話番号は変わっていた。LINEは4年止まっていた。\nそれでも、走ってきてくれる人が、328件のうちにひとりいた。\n\n1,480円は、そのことを確認するには高すぎたし、安すぎた。'},
+ normal_later:{tag:'NORMAL END', name:'後日で結構ですよ', kind:'normal',
+  desc:'紙に名前と連絡先を書いて、店を出た。\n\n翌日、財布を持って払いに行った。\n店長は「あ、どうも」とだけ言った。店員さんは笑って会釈した。\n\n主人公「……あんなに焦る必要、なかったんじゃ」\n\nなかった。最初からなかった。'},
+ bad_dish:{tag:'BAD END', name:'皿洗い', kind:'bad',
+  desc:'「そういうのは、いいんで」\n\n厨房から、皿を洗う音がする。店長が洗っている。\n主人公は席に座ったまま、その音を聞いている。\n\n誰も怒っていない。誰も責めていない。\nただ、妙な空気だけが、店内に残った。'},
+ bad_phone:{tag:'BAD END', name:'スマホを置いていく', kind:'bad',
+  desc:'スマホを担保に、財布を取りに帰ることになった。\n\n店を出て、駅の改札の前で、主人公は立ち止まる。\n\n主人公「……電車、乗れないじゃん」\n\nモバイルPASMOは、スマホの中にあった。\n定期入れは、家の引き出しの中にあった。'},
+ bad_run:{tag:'BAD END', name:'逃亡犯', kind:'bad',
+  desc:'「本当に戻ってきますから！」\n\n言えば言うほど、逃げる人にしか見えなかった。\n名前を書く手が震えていた。震えるようなことは、何もしていないのに。\n\n主人公は、本当に財布を取りに帰った。そして本当に戻ってきた。\nでも、あの30秒の空気は、たぶん一生忘れない。'},
+ bad_police:{tag:'BAD END', name:'大ごと', kind:'bad',
+  desc:'「落ち着いてください」\n\n店長にそう言われた時点で、負けだった。\n警察は呼ばれなかった。呼ぶ必要がなかったからだ。\n\n1,480円の会計を、一人だけ大事件にした男として、\n主人公はこの店で長く語り継がれることになる。'},
+ true_found:{tag:'TRUE END', name:'ありました', kind:'true',
+  desc:'椅子の下に、財布はあった。\nずっと、そこにあった。\n\n家族に連絡し、友人に電話し、隣の客に頭を下げ、\nAIに相談し、銀行と戦い、店長を呼び出して、\nそのあいだずっと、財布は椅子の下で待っていた。\n\n主人公「……カードで」\n店員「はい」'}
+};
+
+function endGame(id){
+  const e=ENDINGS[id]||ENDINGS.normal_later;
+  S.ended=id;
+  try{ localStorage.setItem('okaikei_'+id,'1'); }catch(err){}
+  const seen = Object.keys(ENDINGS).filter(k=>{ try{return !!localStorage.getItem('okaikei_'+k)}catch(err){return k===id} });
+  if(seen.indexOf(id)<0) seen.push(id);
+  const list = Object.keys(ENDINGS).map(k=>{
+    const got=seen.indexOf(k)>=0;
+    return '<div>'+(got?'<span class="got">✔ '+ENDINGS[k].tag+'「'+ENDINGS[k].name+'」</span>':'<span>✖ ？？？？？</span>')+'</div>';
+  }).join('');
+  $('#endCard').innerHTML =
+    '<div class="etag">'+e.tag+'</div><h2>『'+e.name+'』</h2>'+
+    '<div class="edesc">'+e.desc+'</div>'+
+    '<div class="stats">'+
+      '<div><span>試した行動</span><b>'+S.acts+' 手</b></div>'+
+      '<div><span>経過時間</span><b>'+S.min+' 分</b></div>'+
+      '<div><span>信用度</span><b>'+S.trust+'</b></div>'+
+      '<div><span>羞恥心</span><b>'+S.shame+'</b></div>'+
+      '<div><span>店員の困惑度</span><b>'+S.conf+'</b></div>'+
+      '<div><span>逃亡犯感</span><b>'+S.fugitive+'</b></div>'+
+      '<div><span>面倒な客度</span><b>'+S.annoy+'</b></div>'+
+      '<div><span>店員の優しさ</span><b>'+S.kindness+'</b></div>'+
+      '<div><span>周囲の注目度</span><b>'+S.attention+'</b></div>'+
+      '<div><span>バッテリー</span><b>'+Math.round(S.batt)+'%</b></div>'+
+      '<div><span>支払額</span><b>¥1,480</b></div>'+
+      '<div><span>結局</span><b>財布を忘れただけ</b></div>'+
+    '</div>'+
+    '<div class="endlist"><b>エンディング</b>'+list+'</div>'+
+    '<div style="margin-top:16px"><button class="bigbtn" id="btnAgain" style="width:100%">もう一度、財布を忘れる</button><div style="font-size:11.5px;color:var(--ink2);text-align:center;margin-top:8px">別の悪あがきを試すと、別の結末になります</div></div>';
+  $('#endOv').classList.add('on');
+  $('#btnAgain').onclick=()=>{ restartGame('again'); };
+  Snd[e.kind==='good'||e.kind==='true'?'ok':'deny']();
+}
+
+/* ---------- TRUE END 演出 ---------- */
+const TRUE_LINES=[
+ ['sys','',{fx:'unblack'}],
+ ['clerk','あの……',{face:'gentle'}],
+ ['me','はい？',{}],
+ ['clerk','……',{face:'gentle'}],
+ ['clerk','椅子の下に落ちてるの、',{face:'gentle'}],
+ ['clerk','お財布じゃないですか？',{face:'smile',sfx:'ding'}],
+ ['sys','……',{slow:true}],
+ ['sys','ゆっくりと、椅子の下に目をやる。',{slow:true}],
+ ['sys','',{slow:true}],
+ ['sys','財布。',{slow:true,sfx:'drama',wallet:true}],
+ ['sys','',{slow:true}],
+ ['me','…………',{slow:true}],
+ ['sys','',{slow:true}],
+ ['sys','',{slow:true}],
+ ['inner','いつから？',{slow:true}],
+ ['inner','座った時？',{slow:true}],
+ ['inner','ポケットから落ちた？',{slow:true}],
+ ['sys','',{slow:true}],
+ ['sys','家族に連絡した。',{slow:true}],
+ ['sys','友人に電話した。',{slow:true}],
+ ['sys','隣の客に頭を下げた。',{slow:true}],
+ ['sys','AIに相談した。',{slow:true}],
+ ['sys','銀行と戦った。',{slow:true}],
+ ['sys','店長を呼んだ。',{slow:true}],
+ ['sys','',{slow:true}],
+ ['sys','そのあいだ、財布はずっと、椅子の下にいた。',{slow:true}],
+ ['sys','',{slow:true}],
+ ['me','……',{slow:true}],
+ ['sys','財布を拾う。',{slow:true}],
+ ['sys','いつもの重さ。',{slow:true}],
+ ['sys','',{slow:true}],
+ ['me','……カードで',{slow:true}],
+ ['clerk','はい',{face:'smile'}],
+ ['sys','ピッ。'],
+ ['sys','',{fx:'black'}]
+];
+
+/* main.js — 進行エンジン・選択肢/スマホ描画・開始とリスタート */
+/* =========================================================
+   進行エンジン
+   ========================================================= */
+const EXTRA_UNLOCK={
+  web_crime:['tel_110'], meishi:['clerk_meishi'], earphone:['flea_open'],
+  clerk_explain:['clerk_later','clerk_mgr','clerk_dishwash','clerk_key','clerk_conveni',
+                 'clerk_work','clerk_discount','clerk_apolo','clerk_thanks','clerk_gohome',
+                 'clerk_phone','clerk_police','clerk_meishi'],
+  nb_giveup:['clerk_explain'], bank_transfer:['clerk_mgr']
+};
+const INIT_UNLOCK=[
+ 'pocket','bag','jacket','chair','recall','teleport','mirror','receipt',
+ 'breathe','water','gum','wait','look_around','clerk_askpay','clerk_explain',
+ 'qr_paypay','line_family','line_friend','line_col','tel_friendA','tel_110',
+ 'bank_open','pasmo_open','cont_scroll','web_search1','web_review','ai_ask1',
+ 'sns_post','cam_wallet','set_power','set_wallet'
+];
+const CATS=[{id:'search',name:'探す・思い出す'},{id:'clerk',name:'店員と話す'},{id:'around',name:'まわり'},{id:'misc',name:'その他'}];
+const byId={}; ACTS.forEach(a=>byId[a.id]=a);
+
+function usedCount(id){ return S.count[id]||0; }
+function maxOf(a){ return a.max|| (a.linesBy?a.linesBy.length:1); }
+function available(a){
+  if(!S.unlocked.has(a.id)) return false;
+  if(usedCount(a.id) >= maxOf(a)) return false;
+  if(a.req && !a.req()) return false;
+  if(a.cat==='phone' && S.batt<=0) return false;
+  return true;
+}
+function linesFor(a){
+  if(a.linesBy){ const i=Math.min(usedCount(a.id), a.linesBy.length-1); return a.linesBy[i]; }
+  return a.lines||[['sys','……']];
+}
+
+function doAction(id){
+  const a=byId[id]; if(!a||S.playing||S.ended) return;
+  if(a.risky && !S.count['__c_'+id]){
+    $('#confirmText').textContent=a.risky;
+    $('#confirmOv').classList.add('on');
+    $('#cYes').onclick=()=>{ $('#confirmOv').classList.remove('on'); S.count['__c_'+id]=1; doAction(id); };
+    $('#cNo').onclick=()=>{ $('#confirmOv').classList.remove('on'); };
+    return;
+  }
+  Snd.tap();
+  S.count[id]=usedCount(id)+1;
+  S.done.add(id); S.acts++;
+  S.min += (a.time||1);
+  const bd = (a.batt!==undefined) ? a.batt : (a.cat==='phone' ? -2 : 0);
+  S.batt = clamp(S.batt + bd, 0, 100);
+  if(a.fn) a.fn();
+  if(a.flag) on(a.flag);
+  if(AUTOFLAG[a.id]) on(AUTOFLAG[a.id]);
+  if(a.chat) on('chat_'+a.chat);
+  const uls=[].concat(a.unlock||[], EXTRA_UNLOCK[a.id]||[]);
+  uls.forEach(u=>{ if(byId[u] && !S.unlocked.has(u)){ S.unlocked.add(u); S.seenNew.add(u); } });
+  applyFx(a.fx);
+  renderScene(); renderHUD();
+  play(linesFor(a), ()=>{
+    if(a.end){ endGame(a.end); return; }
+    afterAction();
+  });
+}
+
+function afterAction(){
+  renderScene(); renderHUD();
+  // events
+  for(const ev of EVENTS){
+    if(S.flags.has('ev_'+ev.id)) continue;
+    if(ev.when()){
+      on('ev_'+ev.id);
+      applyFx(ev.fx);
+      if(ev.id==='ev_line_reply') on('friendComing');
+      (ev.unlock||[]).forEach(u=>{ if(byId[u]){ S.unlocked.add(u); S.seenNew.add(u); } });
+      play(ev.lines, afterAction);
+      return;
+    }
+  }
+  // TRUE END
+  if((S.done.size>=28 || S.acts>=38) && !S.ended && !has('trueStarted')){
+    on('trueStarted');
+    play(TRUE_LINES, ()=>endGame('true_found'));
+    return;
+  }
+  renderActions(); renderPhone();
+}
+
+/* ---------- 選択肢描画 ---------- */
+function renderActions(){
+  setLock(S.playing);
+  const tabs=$('#tabs'), list=$('#actionList');
+  const avail={}; CATS.forEach(c=>avail[c.id]=[]);
+  ACTS.forEach(a=>{ if(a.cat!=='phone' && available(a)) avail[a.cat] && avail[a.cat].push(a); });
+  tabs.innerHTML=CATS.map(c=>{
+    const n=avail[c.id].length;
+    const isNew=avail[c.id].some(a=>S.seenNew.has(a.id));
+    return '<button class="tab'+(S.tab===c.id?' on':'')+'" data-t="'+c.id+'">'+c.name+'<span class="n">'+n+'</span>'+(isNew?'<span class="dot"></span>':'')+'</button>';
+  }).join('');
+  tabs.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{ S.tab=b.dataset.t; Snd.tap(); renderActions(); });
+  const arr=avail[S.tab]||[];
+  if(!arr.length){ list.innerHTML='<div class="emptyNote">ここには、もう試せることがない。<br>別のタブか、スマホを見てみよう。</div>'; return; }
+  list.innerHTML=arr.map(a=>{
+    const rest = maxOf(a)>1 ? '（あと'+(maxOf(a)-usedCount(a.id))+'回）' : '';
+    return '<button class="act'+(S.seenNew.has(a.id)?' new':'')+(a.risky?' risky':'')+'" data-a="'+a.id+'">'+
+      a.label+'<span class="sub">'+(a.sub||'')+rest+'</span></button>';
+  }).join('');
+  list.querySelectorAll('.act').forEach(b=>b.onclick=()=>{
+    if(S.playing) return;
+    S.seenNew.delete(b.dataset.a);
+    doAction(b.dataset.a);
+  });
+}
+
+/* ---------- スマホ描画 ---------- */
+function appActs(app){ return ACTS.filter(a=>a.cat==='phone'&&a.app===app&&available(a)); }
+function renderPhone(){
+  const sc=$('#pscreen');
+  const badge=$('#ptBadge');
+  if(S.batt<=0){ sc.innerHTML='<div class="pnote" style="text-align:center;padding-top:60px">画面は真っ暗だ。<br><br>充電が、ない。</div>'; if(badge) badge.textContent=''; return; }
+  if(!S.app){
+    let total=0;
+    const grid=APPS.map(ap=>{
+      const n=appActs(ap.id).filter(a=>S.seenNew.has(a.id)).length;
+      total+=appActs(ap.id).length;
+      return '<button class="appicon" data-app="'+ap.id+'"><span class="ic" style="background:'+ap.color+'">'+ap.icon+
+        (n?'<span class="badge">'+n+'</span>':'')+'</span>'+ap.name+'</button>';
+    }).join('');
+    sc.innerHTML='<div class="phome">'+grid+'</div>'+
+      '<div class="pnote">アプリを開いて、できることを探す。<br>電池は有限。時間も有限。1,480円は不変。</div>';
+    sc.querySelectorAll('.appicon').forEach(b=>b.onclick=()=>{ if(S.playing) return; Snd.tap(); S.app=b.dataset.app; renderPhone(); });
+    if(badge) badge.textContent = total?' ('+total+')':'';
+    return;
+  }
+  const ap=APPS.find(x=>x.id===S.app);
+  const acts=appActs(S.app);
+  let extra='';
+  if(S.app==='bank' && has('bankSeen')) extra='<div class="pbal"><div class="l">普通預金 残高</div><div class="v">¥312,450</div></div>';
+  if(S.app==='pasmo' && has('pasmoSeen')) extra='<div class="pbal"><div class="l">モバイルPASMO 残高</div><div class="v">¥4,832</div></div>';
+  if(S.app==='qr') extra='<div class="pbal"><div class="l">ペイペイ君 残高</div><div class="v">¥8,320</div></div>';
+  if(S.app==='cont') extra='<div class="pbal"><div class="l">連絡先</div><div class="v">328件</div></div>';
+  if(S.app==='line'){
+    const keys=Object.keys(CHATS).filter(k=>has('chat_'+k));
+    extra=keys.map(k=>{
+      const c=CHATS[k];
+      return '<div class="pnote" style="padding:2px 2px 4px;color:#c9d0de">'+c.name+'</div><div class="chat">'+
+        c.log.map((m,i)=>'<div class="bub me">'+m[1]+(i===c.log.length-1&&c.read?'<span class="read">'+c.read+'</span>':'')+'</div>').join('')+
+        (has('friendComing')&&k==='old'?'<div class="bub them">今見た</div><div class="bub them">5分で行く</div>':'')+
+        '</div>';
+    }).join('');
+    if(!keys.length) extra='<div class="pnote">トークルーム一覧。<br>最後のやりとりが、どれも半年以上前だ。</div>';
+  }
+  sc.innerHTML='<div class="apptitle"><button id="pback">‹ ホーム</button><h3>'+ap.name+'</h3></div>'+extra+
+    (acts.length? acts.map(a=>{
+      const rest = maxOf(a)>1 ? '（あと'+(maxOf(a)-usedCount(a.id))+'回）' : '';
+      return '<button class="prow" data-a="'+a.id+'">'+a.label+'<span class="sub">'+(a.sub||'')+rest+'</span></button>';
+    }).join('') : '<div class="pnote">このアプリで今できることは、もうない。</div>')+
+    (ap.note?'<div class="pnote">'+ap.note+'</div>':'');
+  $('#pback').onclick=()=>{ Snd.tap(); S.app=null; renderPhone(); };
+  sc.querySelectorAll('.prow').forEach(b=>b.onclick=()=>{
+    if(S.playing) return;
+    S.seenNew.delete(b.dataset.a);
+    doAction(b.dataset.a);
+    if(window.innerWidth<=860){ $('#phone').classList.remove('open'); $('#phoneToggle').innerHTML='📱 スマホ<span id="ptBadge"></span>'; }
+  });
+  if(badge) badge.textContent='';
+}
+
+/* ---------- 開始 / リスタート ---------- */
+const INTRO=[
+ ['clerk','お会計、1,480円になります',{face:'smile'}],
+ ['me','はい',{}],
+ ['sys','ポケットに手を入れる。'],
+ ['sys','……'],
+ ['sys','カバンを開ける。'],
+ ['sys','……'],
+ ['sys','上着の内ポケット。'],
+ ['sys','……'],
+ ['sys','もう一度、ポケット。'],
+ ['sys','',{fx:'shake'}],
+ ['me','……ない',{}],
+ ['inner','財布、忘れた。'],
+ ['sys','',{slow:true}],
+ ['inner','……',{slow:true}],
+ ['inner','まあいいか。'],
+ ['inner','今どき、スマホがあれば何とかなるだろ。'],
+ ['sys','',{fx:'black'}],
+ ['sys','',{drama:'お会計になります',sfx:'drama',slow:true}],
+ ['sys','',{fx:'unblack'}],
+ ['clerk','……お客様？',{face:'gentle',emote:'？'}],
+ ['me','あ、はい。今すぐ',{}]
+];
+const SHORT_INTRO=[
+ ['sys','―― もう一度 ――'],
+ ['clerk','お会計、1,480円になります',{face:'smile'}],
+ ['me','はい',{}],
+ ['sys','ポケット。カバン。上着。もう一度ポケット。'],
+ ['sys','',{fx:'shake'}],
+ ['me','……ない',{}],
+ ['inner','また忘れた。'],
+ ['inner','……まあいいか。'],
+ ['inner','今どき、スマホがあれば何とかなるだろ。']
+];
+let runCount=0;
+function curtain(txt, sub, mid){
+  const c=$('#curtain');
+  $('#curtainTxt').textContent=txt||'';
+  $('#curtainSub').textContent=sub||'';
+  c.classList.add('on');
+  setTimeout(()=>{
+    if(mid) mid();
+    setTimeout(()=>c.classList.remove('on'), 780);
+  }, 640);
+}
+function flashNewGame(txt){
+  const f=$('#newGameFlash');
+  f.textContent=txt;
+  f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+}
+function restartGame(mode){
+  $('#endOv').classList.remove('on');
+  $('#confirmOv').classList.remove('on');
+  curtain('もう一度', 'お会計 ¥1,480 ／ 13:12', ()=>startGame(mode||'again'));
+}
+function startGame(mode){
+  runCount++;
+  S=freshState();
+  const wEl=$('#wallet'); wEl.style.transition='none'; wEl.setAttribute('opacity','0');
+  $('#queue').innerHTML='';
+  fxBlack(false); fxDrama(null);
+  INIT_UNLOCK.forEach(id=>{ if(byId[id]) S.unlocked.add(id); });
+  renderHUD(); renderScene(); setFace('smile');
+  $('#title').classList.remove('on');
+  $('#endOv').classList.remove('on');
+  const rt=$('#runTag');
+  rt.textContent=runCount+'周目';
+  rt.classList.toggle('on', runCount>1);
+  if(runCount>1) flashNewGame('NEW GAME ・ '+runCount+'周目 ・ お会計 ¥1,480');
+  if(mode==='full'){ play(INTRO, ()=>{ renderActions(); renderPhone(); }); }
+  else if(mode==='again'){ play(SHORT_INTRO, ()=>{ renderActions(); renderPhone(); }); }
+  else {
+    S.playing=false; setLock(false);
+    $('#dlgName').textContent='';
+    $('#dlgText').textContent='財布がない。でもスマホはある。何とかなるはずだ。';
+    $('#dlgNext').classList.remove('on');
+    renderActions(); renderPhone();
+  }
+}
+$('#btnStart').onclick=()=>{ startGame('full'); };
+$('#btnSkip').onclick=()=>{ startGame('skip'); };
+$('#btnRestart').onclick=()=>{
+  $('#confirmText').textContent='最初からやり直しますか？\n（財布は、たぶんまた忘れます）';
+  $('#confirmOv').classList.add('on');
+  $('#cYes').onclick=()=>{ restartGame('again'); };
+  $('#cNo').onclick=()=>{ $('#confirmOv').classList.remove('on'); };
+};
+$('#btnSound').onclick=e=>{ const on=Snd.toggle(); e.currentTarget.textContent=on?'🔊':'🔇'; };
+$('#phoneToggle').onclick=()=>{
+  const el=$('#phone'); el.classList.toggle('open'); Snd.tap();
+  $('#phoneToggle').innerHTML = el.classList.contains('open') ? '✕ 閉じる' : '📱 スマホ<span id="ptBadge"></span>';
+  if(!el.classList.contains('open')) renderPhone();
+};
+$('#phone').addEventListener('click', e=>{ if(e.target.id==='phone'){ $('#phone').classList.remove('open'); $('#phoneToggle').innerHTML='📱 スマホ<span id="ptBadge"></span>'; renderPhone(); } });
+
+S=freshState(); renderHUD(); setFace('smile');
+</script>
+</body>
+</html>
