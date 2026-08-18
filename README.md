@@ -18,11 +18,13 @@
 
 ## 遊ぶ
 
+**▶ ブラウザですぐ遊ぶ: https://katomi95.github.io/okaikei-ni-narimasu/**
+
 | 方法 | 手順 |
 | --- | --- |
+| Web | https://katomi95.github.io/okaikei-ni-narimasu/ （`.github/workflows/pages.yml` が main への push ごとに配信） |
 | そのまま | `dist/okaikei.html` をダブルクリック |
 | ローカルサーバ | `python3 -m http.server 8000` → http://localhost:8000 |
-| GitHub Pages | Settings → Pages → Source: **GitHub Actions** （`.github/workflows/pages.yml` が配信します） |
 
 スマートフォンでも遊べます（スマホでは画面右下の「📱 スマホ」ボタンで端末画面を開きます）。
 
