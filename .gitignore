@@ -18,3 +18,6 @@ package-lock.json
 # ログ・一時ファイル
 *.log
 tmp/
+
+# Claude Code（ローカル設定）
+.claude/settings.local.json
